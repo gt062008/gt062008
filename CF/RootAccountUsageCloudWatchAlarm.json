@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "RootAccountUsage CloudWatch Alarm - BenPrudence 12/10/2016",
+  "Description" : "RootAccountUsage CloudWatch Alarm -",
   "Parameters" : {
       "LogGroupName" : {
           "Type" : "String",
@@ -9,7 +9,7 @@
       },
       "Email" : {
           "Type" : "String",
-          "Default" : "ITServiceDelivery-Infrastructure@easyjet.com",
+          "Default" : "e@SSL.com",
           "Description" : "Email address to notify when Root Account Usage has been identified"
       }
   },

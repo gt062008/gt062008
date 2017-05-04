@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Ben Prudence 17/10/2016 - Create a new Public Subnet within a VPC",
+  "Description" : "Create a new Public Subnet within a VPC",
 
   "Parameters" : {
 

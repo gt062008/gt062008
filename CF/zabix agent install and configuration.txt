@@ -15,19 +15,19 @@ Install the repository configuration package
 sudo yum install zabbix-agent -y
  
 3. Configuring Zabbix Agent
-    Open the agent confirguation file and add the fcp-ops-n01.fcp.easyjet.local
+    Open the agent confirguation file and add the fcp-ops-n01.SSL.local
 sudo vi /etc/zabbix/zabbix_agentd.conf
 ***Some lines Truncated***
-Server=fcp-ops-n01.fcp.easyjet.local
+Server=fcp-ops-n01.SSL.local
 ***Some lines Truncated***
-ServerActive=fcp-ops-n01.fcp.easyjet.local
+ServerActive=fcp-ops-n01.SSL.local
 ***Some lines Truncated***
   
 4. Starting and Enabling Zabbix server process
 sudo systemctl start zabbix-agent
 sudo systemctl enable zabbix-agent 
  
- Go to  Zabbix : http://fcp-ops-n01.fcp.easyjet.local/zabbix/
+ Go to  Zabbix : http://fcp-ops-n01.SSL.local/zabbix/
  
  Steps to add the host in the Zabbix
 Login to the portal - login as fcpadmin

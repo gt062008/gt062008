@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Ben Prudence 17/10/2016 - Create a new basic VPC",
+  "Description" : "Create a new basic VPC",
 
   "Parameters" : {
 
