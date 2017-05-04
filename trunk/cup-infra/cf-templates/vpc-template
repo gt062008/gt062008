@@ -1,0 +1,1143 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Cloudformation Network Stack",
+	"Parameters" : {
+	
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+
+		"KeyName": {
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Default": "cup-infrastructure",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		
+		"NATInstanceType": {
+			"Description": "NET Device EC2 instance type",
+			"Type": "String",
+			"Default": "t2.small",
+			"AllowedValues": ["t2.micro", "t2.small", "t2.medium", "m4.large", "m4.xlarge", "m3.xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+
+		"BastionInstanceType" : {
+      		"Description" : "Bastion Host EC2 instance type",
+      		"Type" : "String",
+      		"Default" : "t2.small",
+      		"AllowedValues" : [ "t2.micro","t2.small","t2.medium","t2.large],
+      		"ConstraintDescription" : "must be a valid EC2 instance type."
+   		 },
+	
+		"ServerAccess" : {
+			"Description" : "CIDR IP range allowed to login to the NAT instance",
+			"Type" : "String",
+			"MinLength": "9",
+			"MaxLength": "18",
+			"Default" : "0.0.0.0/0",
+			"AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+		},
+		
+		"VPCIpBlock" : {
+			"Description" : "CIDR for VPC",
+			"Type" : "String",
+			"Default" : "10.10.0.0/16"
+		},
+			
+		"PublicELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Public ELB",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"},
+
+		"PrivateELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private ELB",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.64/26, 10.10.101.64/26, 10.10.102.64/26"},
+
+		"PrivateAppIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private App",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"},
+
+		"PrivateDataIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private Data",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.192/26, 10.10.101.192/26, 10.10.102.192/26"},
+
+		"PrivateServicesIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private Seervices",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.99.0/26, 10.10.99.64/26, 10.10.99.128/26"}
+	},
+
+	"Mappings" : {
+		
+		"AWSRegion2AMI" : {
+			"eu-west-1"	: { "AMI" : "ami-14913f63"}
+		}
+	},
+
+	"AWSInstanceType2Arch" : {
+      	"t2.micro"    : { "Arch" : "64" },
+     	"t2.small"    : { "Arch" : "64" },
+    	"t2.medium"   : { "Arch" : "64" },
+        "t2.large"    : { "Arch" : "64" },
+      	"m4.large"    : { "Arch" : "64" },
+     },
+
+	"Resources" : {
+
+		"VPC" : {
+			"Type" : "AWS::EC2::VPC",
+			"Properties" : {
+				"EnableDnsHostnames" : "True",
+				"EnableDnsSupport" : "True",
+				"CidrBlock" : { "Ref" : "VPCIpBlock"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "EnvType" }, "-VPC" ] ] }
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "VPC"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}] 
+			}
+		},
+		
+		"MonitoringGroup" : {
+			"DependsOn" : ["VPC", "VpnGroup"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Monitoring security group",
+				"VpcId" : { "Ref" : "VPC"},
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "514", "ToPort" : "5514", "CidrIp" :  {"Ref" : "VPCIpBlock"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "9200", "ToPort" : "9200", "CidrIp" :  {"Ref" : "VPCIpBlock"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "9300", "ToPort" : "9300", "CidrIp" :  {"Ref" : "VPCIpBlock"} },
+					{ "IpProtocol" : "udp", "FromPort" : "514", "ToPort" : "5514", "CidrIp" :  {"Ref" : "VPCIpBlock"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" :  {"Ref" : "VpnGroup"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "SourceSecurityGroupId" :  {"Ref" : "VpnGroup"} }
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Monitoring Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Monitoring security group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+			
+		},
+		
+		"CiGroup" : {
+			"DependsOn" : ["VPC", "VpnGroup"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "CI builder security group",
+				"VpcId" : { "Ref" : "VPC"},
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "3389", "ToPort" : "3389", "CidrIp" :  "0.0.0.0/0" },
+					{ "IpProtocol" : "tcp", "FromPort" : "26224", "ToPort" : "26224", "CidrIp" :  "0.0.0.0/0" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "0.0.0.0/0" }
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "CI Builder Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "CI Builder security group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"VpnGroup" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "VPN Server security group",
+				"VpcId" : { "Ref" : "VPC"},
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "1194", "ToPort" : "1194", "CidrIp" :  "0.0.0.0/0" },				
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" :  "0.0.0.0/0" }
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "VPN Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "VPN Server security group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"BastionSecurityGroup" : {
+			"DependsOn : [VPC"],
+      		"Properties" : {
+      			"GroupDescription" : "Bastion Security Group",
+        		"VpcId" : { "Ref" : "VpcId" },
+        		"SecurityGroupIngress" : [ 
+        			{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" } 
+        		]
+
+      		}
+
+   		 },
+    	
+		"NatSecurityGroup" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "NAT Security Group",
+				"VpcId" : { "Ref" : "VPC" },
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" :  { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] }  },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] }  },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] }  },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.153.213.0/24" }
+				],
+				        
+				"SecurityGroupEgress": [
+					{"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80","CidrIp": "0.0.0.0/0"}, 
+					{"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0"}
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Nat Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "NAT Security Group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PublicELBSubnet1" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public ELB Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PublicELBSubnet2" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public ELB Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PublicELBSubnet3" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public ELB Subnet3"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB Subnet 3"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"InternetGateway" : {
+			"Type" : "AWS::EC2::InternetGateway",
+			"Properties" : {
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "InternetGateway"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "InternetGateway"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"GatewayToInternet" : {
+			"DependsOn" : ["VPC", "InternetGateway"],
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"InternetGatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : {"Ref" : "VPC"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public Route Table"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB RouteTable"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PublicRoute" : {
+			"DependsOn" : ["PublicRouteTable", "InternetGateway"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PublicRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"GatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicELBSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PublicELBSubnet1", "PublicRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PublicELBSubnet1" },
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+		
+		"PublicELBSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PublicELBSubnet2", "PublicRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PublicELBSubnet2" },
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+		
+		"PublicELBSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["PublicELBSubnet3", "PublicRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PublicELBSubnet3" },
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+	
+		"PrivateELBSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private ELB Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private ELB Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateELBSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private ELB Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private ELB Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateELBSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private ELB Subnet3"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private ELB Subnet 3"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+	
+		"PrivateRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Route Table"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private RouteTable"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+ 
+		"PrivateELBSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PrivateELBSubnet1", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateELBSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		}, 
+		
+		"PrivateELBSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PrivateELBSubnet2", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateELBSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		}, 
+		
+		"PrivateELBSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["PrivateELBSubnet3", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateELBSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		}, 
+		
+		"PrivateAppSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private App Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private App Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateAppSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private App Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private App Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateAppSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private App Subnet3"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private App Subnet 3"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+ 
+		"PrivateAppSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PrivateAppSubnet1", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateAppSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateAppSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PrivateAppSubnet2", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateAppSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateAppSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["PrivateAppSubnet3", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateAppSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateDataSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Data Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Data Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateDataSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Data Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Data Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateDataSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Data Subnet3"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Data Subnet 3"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+ 
+		"PrivateDataSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PrivateDataSubnet1", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateDataSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateDataSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PrivateDataSubnet2", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateDataSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateDataSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["PrivateDataSubnet3", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateDataSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateServicesSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateServicesIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Services Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Services Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateServicesSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateServicesIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Services Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Services Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateServicesSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateServicesIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Services Subnet3"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private Services Subnet 3"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PrivateSericesSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PrivateServicesSubnet1", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateServicesSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateServicesSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PrivateServicesSubnet2", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateServicesSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateServicesSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["PrivateServicesSubnet3", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateServicesSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+
+		"BastionIPAddress" : {
+      		"Type" : "AWS::EC2::EIP",
+      		"DependsOn" : "GatewayToInternet",
+      		"Properties" : {
+        		"Domain" : "vpc",
+        		"InstanceId" : { "Ref" : "BastionHost" }
+     		 }
+   		},
+
+    	"BastionHost" : {
+      		"Type" : "AWS::EC2::Instance",
+      		"Properties" : {
+        	"InstanceType" : { "Ref" : "BastionInstanceType" },
+        	"KeyName"  : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PublicSubnet" },
+        "ImageId"  : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "AWSInstanceType2Arch", { "Ref" : "BastionInstanceType" }, "Arch" ] } ] },
+        "SecurityGroupIds" : [{ "Ref" : "BastionSecurityGroup" }]
+      }
+    },
+		    
+		"NATIPAddress": {
+			"Type": "AWS::EC2::EIP",
+			"DependsOn": "GatewayToInternet",
+			"Properties": {
+				"Domain": "vpc",
+				"InstanceId": {"Ref": "NAT"}
+			}
+		},
+	
+		"NAT" : {
+			"DependsOn" : ["PublicELBSubnet1", "NatSecurityGroup"],
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"InstanceType" : { "Ref" : "NATInstanceType"},
+				"KeyName" : { "Ref" : "KeyName" },
+				"SourceDestCheck" : "false",
+				"SubnetId" : { "Ref" : "PublicELBSubnet1" },
+				"SecurityGroupIds": [{"Ref": "NatSecurityGroup"}],
+				"ImageId" : { "Fn::FindInMap" : [ "AWSRegion2AMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "NAT"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "NAT Instance"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}],
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"yum update -y && yum install -y yum-cron && chkconfig yum-cron on"
+				]]}}
+			}	
+		},	
+ 
+		"PrivateRoute" : {
+			"DependsOn" : ["PrivateRouteTable", "NAT"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"InstanceId" : { "Ref" : "NAT" }
+			}
+		}
+	}, 
+
+	"Outputs" : {
+		"URL" : {
+			"Value" : { "Fn::Join" : [ "", ["http://", { "Fn::GetAtt" : ["NAT", "PublicIp"] }]]},
+			"Description" : "Newly created application URL"
+		},
+
+		"Bastion" : {
+      		"Description" : "IP Address of the Bastion host",
+      		"Value" :  { "Ref" : "BastionIPAddress" }
+    	},
+		
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Value" : {"Ref" : "EnvType"}
+		},
+		
+		"InternetGatewayId" : {
+			"Description" : "Internet gateway Id",
+			"Value" : { "Ref" : "InternetGateway" }
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Value" : { "Ref" : "VPC" }
+		},
+		
+		"PublicELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PublicELB2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PublicELB3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateApp1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateApp2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateApp3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateData1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+		
+		"PrivateData2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+		
+		"PrivateData3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+			
+		"PrivateELBSubnet1" : {
+			"Description" : "Private ELB1 subnet ID.",
+			"Value" : { "Ref" : "PrivateELBSubnet1" }
+		},
+		
+		"PrivateELBSubnet2" : {
+			"Description" : "Private ELB2 subnet ID.",
+			"Value" : { "Ref" : "PrivateELBSubnet2" }
+		},
+		
+		"PrivateELBSubnet3" : {
+			"Description" : "Private ELB3 subnet ID.",
+			"Value" : { "Ref" : "PrivateELBSubnet3" }
+		},
+		
+		"PublicELBSubnet1" : {
+			"Description" : "Public ELB Subnet",
+			"Value" : { "Ref" : "PublicELBSubnet1" }
+		},
+		
+		"PublicELBSubnet2" : {
+			"Description" : "Public ELB2 Subnet",
+			"Value" : { "Ref" : "PublicELBSubnet2" }
+		},
+		
+		"PublicELBSubnet3" : {
+			"Description" : "Public ELB3 Subnet",
+			"Value" : { "Ref" : "PublicELBSubnet3" }
+		},
+		
+		"PrivateAppSubnet1" : {
+			"Description" : "Private App1 subnet",
+			"Value" : {"Ref" : "PrivateAppSubnet1" }
+		},
+		
+		"PrivateAppSubnet2" : {
+			"Description" : "Private App2 subnet",
+			"Value" : {"Ref" : "PrivateAppSubnet2" }
+		},
+		
+		"PrivateAppSubnet3" : {
+			"Description" : "Private App3 subnet",
+			"Value" : {"Ref" : "PrivateAppSubnet3" }
+		},
+		
+		"PrivateDataSubnet1" : {
+			"Description" : "Private Data1 Subnet",
+			"Value" : { "Ref" : "PrivateDataSubnet1" }
+		},
+		
+		"PrivateDataSubnet2" : {
+			"Description" : "Private Data2 Subnet",
+			"Value" : { "Ref" : "PrivateDataSubnet2" }
+		},
+		
+		"PrivateDataSubnet3" : {
+			"Description" : "Private Data3 Subnet",
+			"Value" : { "Ref" : "PrivateDataSubnet3" }
+		},
+		
+		"PrivateServicesSubnet1" : {
+			"Description" : "Private Services1 Subnet",
+			"Value" : { "Ref" : "PrivateServicesSubnet1" }
+		},
+		
+		"PrivateServicesSubnet2" : {
+			"Description" : "Private Services2 Subnet",
+			"Value" : { "Ref" : "PrivateServicesSubnet2" }
+		},
+		
+		"PrivateServicesSubnet3" : {
+			"Description" : "Private Services3 Subnet",
+			"Value" : { "Ref" : "PrivateServicesSubnet3" }
+		},
+		"MonitoringGroup" : {
+			"Description" : "Monitoring Security Group",
+			"Value" : { "Ref" : "MonitoringGroup"}
+		},
+		"VpnGroup" : {
+			"Description" : "VPN Server Security Group",
+			"Value" : { "Ref" : "VpnGroup"}
+		},
+		"CiGroup" : {
+			"Description" : "CI Builder Security Group",
+			"Value" : { "Ref" : "CiGroup"}
+		}
+	}
+}
+

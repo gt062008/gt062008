@@ -1,0 +1,41 @@
+Before:-
+
+$host =  http.getHostHeader();
+$redirect="http://education.cambridge.org";
+$url = string.lowercase(http.getPath());
+
+if ((string.startsWith  ( $urlNoLocale, "/education/")||string.startsWith  ( $url, "/uk/education")||string.startsWith  ( $url, "/gb/education") ) &&
+   (!string.startsWith  ( $url, "/us/") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-writing-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/jigsawing/") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-speaking-listening-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-writing-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn speaking listening-sample-2/") ) ) {
+      http.sendResponse( 301, "", "", "Location: ".$redirect);
+}
+
+
+
+After admin release:-
+
+$host =  http.getHostHeader();
+$redirect="http://education.cambridge.org";
+$url = string.lowercase(http.getPath());
+
+if ((string.startsWith  ( $urlNoLocale, "/education/")||string.startsWith  ( $url, "/uk/education")||string.startsWith  ( $url, "/gb/education") ) &&
+   (!string.startsWith  ( $url, "/us/") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-writing-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/jigsawing/") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-speaking-listening-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn-writing-sample") ) &&
+   (!string.startsWith  ( $url, "/uk/education/primary/ilearn/i-learn speaking listening-sample-2/") ) ) {
+    	if ($host != 'admin.cambridge.org') {
+      		http.sendResponse( 301, "", "", "Location: ".$redirect);
+		}
+	}
+}
+
+
+After deliver release:-
+
+<Nothing - this if statement is removed>

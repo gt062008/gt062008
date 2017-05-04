@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "EnvType",
+    "ParameterValue": "staging"
+  },
+
+  {
+    "ParameterKey": "DomainName",
+    "ParameterValue": "aop.cambridge.org"
+  },
+
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+  },
+
+  {
+    "ParameterKey": "OpsQueueARN",
+    "ParameterValue": "arn:aws:sqs:eu-west-1:291050698310:staging-ops-events"
+  }
+
+]

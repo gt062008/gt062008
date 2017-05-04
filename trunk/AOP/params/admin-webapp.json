@@ -1,0 +1,58 @@
+[
+  {
+    "ParameterKey": "HostName",
+    "ParameterValue": "adminweb"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-e806b08d"
+  },
+
+  {
+    "ParameterKey": "InstanceSubnets",
+    "ParameterValue": "subnet-eb35588e, subnet-eb35588e, subnet-b9be11e0"
+  },
+
+  {
+    "ParameterKey": "MonitoringGroup",
+    "ParameterValue": "sg-2b54704e"
+  },
+
+  {
+    "ParameterKey": "VpnGroup",
+    "ParameterValue": "sg-5a54703f"
+  },
+
+  {
+    "ParameterKey": "CiGroup",
+    "ParameterValue": "sg-2854704d"
+  },
+
+  {
+    "ParameterKey": "ESBloadBalancerSecGroup",
+    "ParameterValue": "sg-6a56720f"
+  },
+
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "aopprod"
+  },
+
+  {
+    "ParameterKey": "BaseAmi",
+    "ParameterValue": "ami-4d3c5e3a"
+  },
+  {
+    "ParameterKey": "LoggingBucket",
+    "ParameterValue": "shared-prod-s3-elb-logs"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z3LZDTQKNP5I6F"
+  },
+
+  {
+    "ParameterKey": "OpsQueueARN",
+    "ParameterValue": "arn:aws:sqs:eu-west-1:942772678354:ops-events"
+  }
+]

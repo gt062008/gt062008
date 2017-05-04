@@ -1,0 +1,108 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "Create s3 Resources for idm",
+
+  "Parameters": {
+    "HostName": {
+      "Description" : "Base hostname for services",
+      "Type": "String",
+      "Default" : "idm.platform"
+    },
+
+    "DomainName": {
+      "Description" : "Base domain name",
+      "Type": "String",
+      "Default" : "aop.cambridge.org"
+    },
+  
+    "EnvType" : {
+      "Description" : "Enviroment Type",
+      "Default" : "prod",
+      "Type" : "String"
+    },
+
+    "BucketPrefix" : {
+      "Description" : "Bucket name prefix",
+      "Default" : "static",
+      "Type" : "String"
+    },
+
+    "DNSZoneId" : {
+      "Default" : "/hostedzone/Z24DM7IXHGSU76",
+      "Description" : "ZoneId of our Route53 DNS",
+      "Type" : "String"
+    }
+  },
+
+  "Resources": {
+
+    "idmBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy" : "Retain",
+      "Properties" :{
+        "AccessControl": "Private",
+        "BucketName" :  { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-", { "Ref" : "BucketPrefix" }, "-s3-bucket" ] ] }
+        }, {
+          "Key" : "aop_env",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "aop_role",
+          "Value" : { "Ref" : "HostName" }
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro"
+        }, {
+          "Key" : "Platform",
+          "Value" : "AOP"
+        }]
+      }
+    },
+    
+    "idmBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "idmBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [ {
+            "Sid": "useraccess",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": "s3:GetObject",
+            "Resource": { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"}, "/*" ] ] }
+            }
+          ]
+        }
+      }
+    },
+
+    "idmBucketCname" : {
+      "Type" : "AWS::Route53::RecordSet",
+        "Properties" : {
+           "HostedZoneId" : { "Ref" : "DNSZoneId" },
+           "Comment" : "CNAME for app serivce ELB",
+           "Name" :  { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+           "Type" : "CNAME",
+           "TTL" : "300",
+           "ResourceRecords" : [  { "Fn::GetAtt" : [ "idmBucket", "DomainName" ] }  ]
+        }
+      }
+  },
+  
+  "Outputs": {
+    "idmBucketName": {
+      "Description": "Name of s3 bucket",
+      "Value": { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] }
+    },
+
+    "idmBucketDomainName": {
+      "Description": "URL of s3 bucket",
+      "Value": { "Fn::GetAtt" : [ "idmBucket", "DomainName" ] }
+    }
+  }
+}

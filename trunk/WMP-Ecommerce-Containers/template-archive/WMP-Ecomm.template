@@ -1,0 +1,114 @@
+{
+
+  "Description" : "Test CloudFormation script WMP Ecommerce.",
+
+   "Parameters" : {
+      "KeyName": {
+         "Description" : "Name of existing SSH Keypair",
+         "Type" : "String",
+         "MinLength" : "1",
+         "MaxLength" : "255",
+         "AllowedPattern" : "[\\x20-\\x7E]*",
+         "ConstraintDescription" : "can contain only ASCII characters."
+      } 
+   },
+
+   "Mappings" : {
+
+      "SubnetConfig" : {
+         "VPC"      : { "CIDR" : "10.10.15.0/24" },
+         "PublicB"  : { "CIDR" : "10.10.15.0/26" },
+         "PrivateB" : { "CIDR" : "10.10.15.64/26" }
+       },
+	   
+       "CUPSSubnetConfig" : {
+         "CAMINFRA"     : { "CIDR" : "131.111.159.0/24" },
+         "CAMPT"        : { "CIDR" : "131.111.154.0/24" }
+       },
+
+       "AWSAMI" : {   
+          "Amazon"   : { "AMI" : "ami-748e2903" },
+		  "NAT"      : { "AMI" : "ami-ed352799" },
+		  "Centos"   : { "AMI" : "ami-00e33a77" },
+		  "ADMIN"    : { "AMI" : "ami-672ce210" },
+		  "ACS"      : { "AMI" : "ami-d91ad1ae" }
+       }
+   },
+   
+  "Resources" : {
+
+    "WebServer1" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "m3.medium" ,
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : "subnet-01a91f64",
+		"SecurityGroupIds" : ["sg-8d41fbe8"],
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", "Centos", "AMI" ]},
+		"Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Project", "Value" : "WMP Ecomm" },
+		  { "Key" : "Owner", "Value" : "Marc Paskell" },
+		  { "Key" : "Platform", "Value" : "Application" },
+          { "Key" : "Name", "Value" : "wmp-ecomm-konakart" },
+		  { "Key" : "Version", "Value" : "5" }
+        ],
+		"UserData" : { "Fn::Base64" : {"Fn::Join" : ["\n",[
+	   "#!/bin/bash",
+           "/usr/sbin/groupadd -g 506 wmpecommdev",
+           "/usr/sbin/useradd -g wmpecommdev -c \"Ecommerce Developer account\" wmpecommdev",
+           "cd /home/wmpecommdev",
+           "/bin/mkdir .ssh",
+           "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCvloyc5wTv3UBFzG+3KHnT4x0ZMXEjxZkKpW0R5IbD+7qRWjpbyQOhhf2rMe6yVZ+V0plHBDqiZTPXntnWhPfQ9hRxF9Flf1TW+PQPdxZzXpDsXg2Ep1onMFF6fBFv8SdaK5+tfrCh144eUyPriygXcSjyhGJ8Rlw4p24yt3tBAi8rRUUdO13JB50lMvm+mQPpFQF9fIjZAIolCdwVCIbXMDgbYctkhN9p07MfCcknLIYO6OixB7TQN6eZg9MDksuiWyOOq+KHfa71THtX1yyBR9CtZFSQLbpCGMTJHIpSKR4nPUdWvjT7V9bPYjvPZOUhKQe3YsdvM84oFDsDmMLL wmpecommdev@puppet.aws.internal' >.ssh/authorized_keys",
+           "/bin/chown -R wmpecommdev:wmpecommdev .ssh",
+           "/bin/chmod 700 .ssh",
+           "/bin/chmod 600 .ssh/authorized_keys",
+		   
+		   "/bin/sed -n '1,4p' /etc/puppet/puppet.conf >/tmp/puppet.conf",
+		   "echo server puppet.int.aws.cambridge.org >>/tmp/puppet.conf",
+		   "/bin/sed -n '5,$p' /etc/puppet/puppet.conf >>/tmp/puppet.conf",
+		   "/bin/mv /tmp/puppet.conf /etc/puppet/puppet.conf",
+		   "/usr/bin/puppet agent",
+		   
+		   "/usr/bin/yum -y mysql",
+		   "/usr/bin/yum -y httpd",
+		   "/usr/bin/yum -y telnet",
+		   "/usr/bin/yum -y cup-apache-tomcat-8",
+		   "/usr/bin/yum -y cup-mod_jk-1.2.37",
+		   
+		   "echo 'JAVA_HOME=/usr/lib/jvm/jre' >/root/.profile",
+		   ". /root/.profile",
+		   "/bin/mkdir /usr/java",
+		   "/bin/ln /usr/lib/jvm/jre /usr/java/default",
+		   
+		   "cd /tmp",
+		   "wget http://cup-wmp-ecomm-files.s3-website-eu-west-1.amazonaws.com/KonaKart-7.2.0.0-Linux-Install-64",
+		   "wget http://cup-wmp-ecomm-files.s3-website-eu-west-1.amazonaws.com/KonaKart-Enterprise-7.2.0.0-Linux-Install-Trial-64",
+		   "wget http://cup-wmp-ecomm-files.s3-website-eu-west-1.amazonaws.com/files.tar",
+		   "/bin/chmod u+x ./KonaKart*",
+		   "./KonaKart-7.2.0.0-Linux-Install-64 -S -DDatabaseType mysql -DJavaJRE /usr/lib/jvm/jre -DDatabaseUrl jdbc:mysql://konakart-db-dev.aws.cambridge.org:3306/konakart?zeroDateTimeBehaviour=convertToNull -DDatabaseUsername root -DDatabasePassword ymVCcnFI56O6Ptn5 -DInstallationDir /app/konakart",
+		   
+		   
+		   "/bin/tar -xpf ./files.tar",
+		   "/bin/cp tmp/files/konakart /etc/init.d",
+		   "/sbin/chkconfig --add konakart",
+		   "/bin/cp tmp/files/tomcat.conf /etc/httpd/conf.d",
+		   "/bin/cp tmp/files/server.xml.tc7 /app/konakart/conf/server.xml",
+		   "/bin/cp tmp/files/server.xml.tc8 /data/tomcat/conf/server.xml",
+		   
+		   "/bin/rm -rf tmp",
+		   
+		   "./KonaKart-Enterprise-7.2.0.0-Linux-Install-Trial-64 -S -DDatabaseType mysql -DJavaJRE /usr/lib/jvm/jre -DDatabaseUrl jdbc:mysql://konakart-db-dev.aws.cambridge.org:3306/konakart?zeroDateTimeBehaviour=convertToNull -DDatabaseUsername root -DDatabasePassword ymVCcnFI56O6Ptn5 -DInstallationDir /app/konakart -DEngineMode 2 -DLoadDB 1",
+		   "exit" ]]}}
+      }
+    }
+},
+
+
+  "AWSTemplateFormatVersion": "2010-09-09"
+   
+}
+
+    
+    

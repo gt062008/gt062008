@@ -1,0 +1,22 @@
+﻿###############################################
+##   Add SecurityGroup to list of instances  ##
+##         Ben Prudence - 26/10/2016         ##
+###############################################
+
+##
+Import-Module AWSPowershell
+
+## Tag Details
+$sg = "sg-ba223bdd"
+
+## Import List of instance ID's
+$Instances = Get-Content C:\Scripts\instances.txt
+
+## Loop Instances to Tag
+Foreach ($instance in $Instances) {
+$groups = ((Get-EC2InstanceAttribute -InstanceId $Instance -Attribute groupSet).Groups)| % {$_.GroupId}) -join '", "'
+$Group2 = $Groups | % { '"' + $_ + '"'}
+Edit-EC2InstanceAttribute -InstanceId $instance -Group @( $groups , $sg )
+}
+
+$((Get-EC2InstanceAttribute -InstanceId $Instance -Attribute groupSet).Groups)

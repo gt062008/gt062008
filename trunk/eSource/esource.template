@@ -1,0 +1,144 @@
+{
+
+  "Description" : "Test CloudFormation script esource.",
+
+   "Parameters" : {
+      "KeyName": {
+         "Description" : "Name of existing SSH Keypair",
+         "Type" : "String",
+         "MinLength" : "1",
+         "MaxLength" : "255",
+         "AllowedPattern" : "[\\x20-\\x7E]*",
+         "ConstraintDescription" : "can contain only ASCII characters."
+      } 
+   },
+
+   "Mappings" : {
+
+      "SubnetConfig" : {
+         "VPC"      : { "CIDR" : "10.10.15.0/24" },
+         "PublicB"  : { "CIDR" : "10.10.15.0/26" },
+         "PrivateB" : { "CIDR" : "10.10.15.64/26" }
+       },
+	   
+       "CUPSSubnetConfig" : {
+         "CAMINFRA"     : { "CIDR" : "131.111.159.0/24" },
+         "CAMPT"        : { "CIDR" : "131.111.154.0/24" }
+       },
+
+       "AWSAMI" : {   
+          "Amazon"   : { "AMI" : "ami-748e2903" },
+		  "NAT"      : { "AMI" : "ami-ed352799" },
+		  "Centos"   : { "AMI" : "ami-00e33a77" },
+		  "ADMIN"    : { "AMI" : "ami-672ce210" },
+		  "ACS"      : { "AMI" : "ami-d91ad1ae" }
+       }
+   },
+   
+  "Resources" : {
+
+    "WebServer1" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "m3.medium" ,
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : "subnet-cc8747a9",
+		"SecurityGroupIds" : ["sg-afa779ca"],
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", "Centos", "AMI" ]},
+		"Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Project", "Value" : "eSource" },
+		  { "Key" : "Owner", "Value" : "Ben Dowzell" },
+		  { "Key" : "Platform", "Value" : "Web" },
+          { "Key" : "Name", "Value" : "esource-4" }
+        ],
+		"UserData" : { "Fn::Base64" : {"Fn::Join" : ["\n",[
+	   "#!/bin/bash",
+           "/usr/sbin/groupadd -g 502 azukiadmin",
+           "/usr/sbin/useradd -u 501 -g azukiadmin -d /home/azukiadmin -c \"External Developer Co Read Only access\" azukiadmin",
+           "cd /home/azukiadmin",
+           "/bin/mkdir .ssh",
+           "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6swHUPDjAiTjwcGzvcEv46D731U9Sn+xB8QjdbuSamSrJMa7O3cyhnBB0q9PMA0E4dYU1DYgCrHNg/5CbATM+yo22QTPcO447WCWAK+F3dZZxCmbZr0yXspVOEgBvoDVBxjP5ag/vhsZ2qSnlqI6EpID88Sc+UuYHUAwUe357F6ar3RFtuxyA3uXB8tltZzhfjodbuLcvgjeaARIJ9+7pqyfHLVDTY+RNeRVOKVnq12kBduw7crHr7QviGkRqHTxAI1x7ixhluJwBMr0HNVZ6yEoj9W7mP7JN+sCd2saQrb7OnzT/jCzXAq1tsdcR4wz6qQyaXX7xWw8IRaaUf5iyQ== azukiadmin@eltpuppet.aws.cambridge.org' >.ssh/authorized_keys",
+           "/bin/chown -R azukiadmin:azukiadmin .ssh",
+           "/bin/chmod 700 .ssh",
+           "/bin/chmod 600 .ssh/authorized_keys",
+		   
+		   "/usr/bin/yum -y yum-plugin-priorities", 
+		   "echo \"[remi]\" >/etc/yum.repos.d/remi.repo",
+		   "echo \"name=Remi PHP packages from AWS Puppet master\" >>/etc/yum.repos.d/remi.repo",
+		   "echo \"baseurl=http://remirepo.aws.cambridge.org/\" >>/etc/yum.repos.d/remi.repo",
+		   "echo \"enabled=1\" >>/etc/yum.repos.d/remi.repo",
+		   "echo \"gpgcheck=0\" >>/etc/yum.repos.d/remi.repo",
+		   "/usr/bin/yum clean all",
+		   "/usr/bin/yum -n update",
+		   "/usr/bin/yum -y php-common",
+		   "/usr/bin/yum -y php-cli",
+		   "/usr/bin/yum -y php",
+		   "/usr/bin/yum -y php-mysql",
+		   "/usr/bin/yum -y php-mcrypt",
+		   "/usr/bin/yum -y php-pdo",
+		   "/usr/bin/yum -y php-mbstring",
+		   "cd /tmp",
+		   "/usr/bin/wget http://www6.atomicorp.com/channels/atomic/centos/6/x86_64/RPMS/mysqlclient18-5.5.28-6.el6.art.x86_64.rpm",
+		   "/usr/bin/yum -y install ./mysqlclient18-5.5.28-6.el6.art.x86_64.rpm",
+		   "/usr/bin/yum -y mysql",
+		   
+		   "/usr/bin/wget https://s3-eu-west-1.amazonaws.com/azuki.io/files/esource_backup.sql",
+		   "echo \"create database esource\" >/tmp/createdb",
+           "echo \"exit\" >>/tmp/createdb",
+           "/usr/bin/mysql -u root -p 5ghseJFDQIwOKIn -h esource-sql.aws.cambridge.org </tmp/createdb",
+           "/usr/bin/mysql -u root -p 5ghseJFDQIwOKIn -h esource-sql.aws.cambridge.org </tmp/esource_backup.sql",
+		   
+		   "/usr/bin/wget https://s3-eu-west-1.amazonaws.com/azuki.io/files/esourceresources_backup.zip",
+           "/usr/bin/wget https://s3-eu-west-1.amazonaws.com/azuki.io/files/esourcestyles_backup.zip",
+
+	       "/usr/bin/curl -sS https://getcomposer.org/installer | /usr/bin/php",
+           "/bin/mv /tmp/composer.phar /usr/local/bin/composer",
+	       "/usr/bin/yum -y install git",
+	       "unset SSH_ASKPASS",
+           "PATH=$PATH:/usr/local/bin",
+	       "cd /var/www/html",
+	       "/usr/bin/git clone https://pharwood:sr86kb54@bitbucket.org/lukec/esource.git",
+	       "echo '<?php' >esource/.env.php",
+	       "echo 'return array(' >>esource/.env.php",
+	       "echo \"   'DB_HOST' => 'esource-db.aws.cambridge.org',\" >>esource/.env.php",
+	       "echo \"   'DB_NAME' => 'esource',\" >>esource/.env.php",
+	       "echo \"   'DB_USERNAME' => 'root',\" >>esource/.env.php",
+	       "echo \"   'DB_PASSWORD' => '5ghseJFDQIwOKIn'\" >>esource/.php.env",
+           "echo \"   'MAIL_DRIVER' => 'sendmail'\" >>esource/.php.env",
+           "echo \"   'MAIL_HOST' => 'localhost'\" >>esource/.php.env",
+           "echo \"   'MAIL_FROM' => 'no-reply@cambridge.org'\" >>esource/.php.env",
+           "echo \"   'TRUSTED_PROXY' => '*'\" >>esource/.php.env
+	       "/bin/chown -R apache:apache .",
+	       "/usr/local/bin/composer install --nodev",
+	       "/bin/sed -i 's/expose_php = On/expose_php = Off' /etc/php.ini",
+
+           "cd /var/www/html/esource/app/storage",
+           "/usr/bin/unzip /tmp/esourceresources_backup_141029.zip",
+           "cd /var/www/html/esource/public",
+           "/usr/bin/unzip /tmp/esourcestyles_backup_141029.zip",
+           "cd /var/www/html/esource",
+           "/bin.chown -R apache:apache *",
+
+           "/bin/rm -f /tmp/mysqlclient* /tmp/esource_backup.sql /tmp/createdb /tmp/esource*",
+
+           "/bin/sed -i 's/AllowOverridge None/AllowOverride All' /etc/httpd/conf/httpd.conf",
+	       "/bin/sed -i 's/ServerTokens OS/ServerTokens Prod' /etc/httpd/conf/httpd.conf",
+	       "/bin/sed -i 's/ServerSignature On/ServerSignature Off' /etc/httpd/conf/httpd.conf",
+	       "/bin/sed -i 's/FollowSymLinks/SymLinksIfOwnerMatch' /etc/httpd/conf/httpd.conf",
+	       "echo \"TraceEnable Off\" >/etc/httpd/conf.d/notrace.conf",
+           "/bin/sed -i 's/DocumentRoot \"\/var\/www\/html\"/DocumentRoot \"\/var\/www\/html\/esource\/public\"/' /etc/httpd/conf/httpd.conf",
+           "/sbin/service httpd start"
+		   "exit" ]]}}
+      }
+    }
+},
+
+
+  "AWSTemplateFormatVersion": "2010-09-09"
+   
+}
+
+    
+    

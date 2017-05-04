@@ -1,0 +1,2121 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation template for CUPS AWS AuthorHub environment.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-1aa0e76d"
+            }, 
+            "Centos": {
+                "AMI": "ami-f13b6582"
+            }, 
+            "SFTP": {
+                "AMI": "ami-7e6f380d"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.0/24"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            }, 
+            "MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            }, 
+            "NY-1": {
+                "CIDR": "38.122.225.74/32"
+            }, 
+            "NY-2": {
+                "CIDR": "65.202.160.242/32"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateA": {
+                "CIDR": "10.10.51.0/27"
+            }, 
+            "PrivateB": {
+                "CIDR": "10.10.51.32/27"
+            }, 
+            "PrivateC": {
+                "CIDR": "10.10.51.64/27"
+            }, 
+            "PrivateD": {
+                "CIDR": "10.10.51.96/27"
+            }, 
+            "PublicA": {
+                "CIDR": "10.10.51.128/27"
+            }, 
+            "PublicB": {
+                "CIDR": "10.10.51.160/27"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.51.0/24"
+            }
+        }
+    }, 
+    "Outputs": {
+        "AdminServerR53": {
+            "Description": "AH Admin Server DNS Record", 
+            "Value": {
+                "Ref": "AdminServerR53"
+            }
+        }
+    }, 
+    "Parameters": {
+        "AHPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RDS MySQL ah_admin password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RDS MySQL root password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Environment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of environment", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "GoldImageAMI": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing AuthorHub AMI", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of IAM Role associated with S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "AdminIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AdminServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AdminSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Admin Server Security Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AdminServer": {
+            "DependsOn": [
+                "AdminSecurityGroup", 
+                "MySQLDatabase"
+            ], 
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t2.micro", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AdminSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Admin Bastion Server", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/scripts/create_ah_admin_user.sql /tmp/create_ah_admin_user.sql", 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "sed -i 's/password/", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " /tmp/create_ah_admin_user.sql"
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/mysql -u root -p", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " -h ", 
+                                            {
+                                                "Ref": "MySQLDatabase"
+                                            }, 
+                                            " </tmp/create_ah_admin_user.sql"
+                                        ]
+                                    ]
+                                }, 
+                                "/usr/bin/aws s3 s3://cup-wmp-ecomm-files/authorhub/authorhub.sql /tmp", 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/mysql -u root -p", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " -h ", 
+                                            {
+                                                "Ref": "MySQLDatabase"
+                                            }, 
+                                            " <<EOD"
+                                        ]
+                                    ]
+                                }, 
+                                "use authorhub;", 
+                                "source /tmp/authorhub.sql;", 
+                                "exit;",
+                                "EOD"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "AdminServerR53": {
+            "DependsOn": [
+                "AdminServer", 
+                "AdminIPAddress"
+            ], 
+            "Properties": {
+                "Comment": "Alias for Admin Server", 
+                "HostedZoneId": "ZWEBITPF5WUTE", 
+                "Name": {
+                    "Fn::Join": [
+                        "", 
+                        [
+                            "AH-Admin-", 
+                            {
+                                "Ref": "Environment"
+                            }, 
+                            ".aws.cambridge.org"
+                        ]
+                    ]
+                }, 
+                "ResourceRecords": [
+                    {
+                        "Fn::GetAtt": [
+                            "AdminServer", 
+                            "PublicIp"
+                        ]
+                    }
+                ], 
+                "TTL": "300", 
+                "Type": "A"
+            }, 
+            "Type": "AWS::Route53::RecordSet"
+        }, 
+        "AppLBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Application Load Balancer Security Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AppLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "3", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/test.html", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "5"
+                }, 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": {
+                    "Fn::Join": [
+                        "-", 
+                        [
+                            "App-Load-Balancer", 
+                            {
+                                "Ref": "Environment"
+                            }
+                        ]
+                    ]
+                }, 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "AppLBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }, 
+                    {
+                        "Ref": "PublicSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Application Load Balancer", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "AppLoadBalancerR53": {
+            "DependsOn": "AppLoadBalancer", 
+            "Properties": {
+                "Comment": "Alias for App Server ELB AuthorHub", 
+                "HostedZoneId": "ZWEBITPF5WUTE", 
+                "Name": {
+                    "Fn::Join": [
+                        "", 
+                        [
+                            "AH-App-", 
+                            {
+                                "Ref": "Environment"
+                            }, 
+                            ".aws.cambridge.org"
+                        ]
+                    ]
+                }, 
+                "ResourceRecords": [
+                    {
+                        "Fn::GetAtt": [
+                            "AppLoadBalancer", 
+                            "DNSName"
+                        ]
+                    }
+                ], 
+                "TTL": "300", 
+                "Type": "CNAME"
+            }, 
+            "Type": "AWS::Route53::RecordSet"
+        }, 
+        "AppServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppLBSecurityGroup"
+                        }, 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppLBSecurityGroup"
+                        }, 
+                        "ToPort": "443"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Application Server Security Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AutoScalingConfig": {
+            "DependsOn": "AppServerSecurityGroup", 
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Ref": "GoldImageAMI"
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroups": [
+                    {
+                        "Ref": "AppServerSecurityGroup"
+                    }
+                ]
+            }, 
+            "Type": "AWS::AutoScaling::LaunchConfiguration"
+        }, 
+        "AutoScalingGroup": {
+            "Properties": {
+                "LaunchConfigurationName": {
+                    "Ref": "AutoScalingConfig"
+                }, 
+                "LoadBalancerNames": [
+                    {
+                        "Ref": "AppLoadBalancer"
+                    }
+                ], 
+                "MaxSize": "2", 
+                "MinSize": "1", 
+                "VPCZoneIdentifier": [
+                    {
+                        "Ref": "PrivateSubnetA"
+                    }, 
+                    {
+                        "Ref": "PrivateSubnetB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::AutoScaling::AutoScalingGroup"
+        }, 
+        "AutoScalingPolicy": {
+            "Properties": {
+                "AdjustmentType": "ChangeInCapacity", 
+                "AutoScalingGroupName": {
+                    "Ref": "AutoScalingGroup"
+                }, 
+                "Cooldown": "1", 
+                "ScalingAdjustment": "1"
+            }, 
+            "Type": "AWS::AutoScaling::ScalingPolicy"
+        }, 
+        "CPUAlarmHigh": {
+            "Properties": {
+                "AlarmActions": [
+                    {
+                        "Ref": "AutoScalingPolicy"
+                    }
+                ], 
+                "AlarmDescription": "Alarm if CPU too high or metric disappears indicating node down", 
+                "ComparisonOperator": "GreaterThanThreshold", 
+                "Dimensions": [
+                    {
+                        "Name": "AutoScalingGroupName", 
+                        "Value": {
+                            "Ref": "AutoScalingGroup"
+                        }
+                    }
+                ], 
+                "EvaluationPeriods": "1", 
+                "MetricName": "CPUUtilization", 
+                "Namespace": "AWS/EC2", 
+                "Period": "60", 
+                "Statistic": "Average", 
+                "Threshold": "40"
+            }, 
+            "Type": "AWS::CloudWatch::Alarm"
+        }, 
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "IGW"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        "MySQLDatabase": {
+            "DependsOn": "MySQLDatabaseParameterGroup", 
+            "Properties": {
+                "AllocatedStorage": "100", 
+                "DBInstanceClass": "db.t2.small", 
+                "DBName": "authorhub", 
+                "DBParameterGroupName": {
+                    "Ref": "MySQLDatabaseParameterGroup"
+                }, 
+                "DBSubnetGroupName": {
+                    "Ref": "MySQLSubnetGroup"
+                }, 
+                "Engine": "MySQL", 
+                "EngineVersion": "5.6.29", 
+                "MasterUserPassword": {
+                    "Ref": "DBPassword"
+                }, 
+                "MasterUsername": "root", 
+                "PubliclyAccessible": "false", 
+                "StorageType": "gp2", 
+                "Tags": [
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "AuthorHub RDS MySQL database", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "RDS MySQL"
+                    }
+                ], 
+                "VPCSecurityGroups": [
+                    {
+                        "Ref": "MySQLSecurityGroup"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBInstance"
+        }, 
+        "MySQLDatabaseParameterGroup": {
+            "Properties": {
+                "Description": "RDS DB Parameter Group", 
+                "Family": "mysql5.6", 
+                "Parameters": {
+                    "sql_mode": "IGNORE_SPACE"
+                }
+            }, 
+            "Type": "AWS::RDS::DBParameterGroup"
+        }, 
+        "MySQLDatabaseR53": {
+            "DependsOn": "MySQLDatabase", 
+            "Properties": {
+                "Comment": "Alias for MySQL DB AuthorHub", 
+                "HostedZoneId": "ZWEBITPF5WUTE", 
+                "Name": {
+                    "Fn::Join": [
+                        "", 
+                        [
+                            "AH-mysql-", 
+                            {
+                                "Ref": "Environment"
+                            }, 
+                            ".aws.cambridge.org"
+                        ]
+                    ]
+                }, 
+                "ResourceRecords": [
+                    {
+                        "Fn::GetAtt": [
+                            "MySQLDatabase", 
+                            "Endpoint.Address"
+                        ]
+                    }
+                ], 
+                "TTL": "300", 
+                "Type": "CNAME"
+            }, 
+            "Type": "AWS::Route53::RecordSet"
+        }, 
+        "MySQLSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "MySQL DB Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppServerSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }, 
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "MySQL DB SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "MySQLSubnetGroup": {
+            "Properties": {
+                "DBSubnetGroupDescription": "AuthorHub RDS MySQL DB Subnet Group", 
+                "SubnetIds": [
+                    {
+                        "Ref": "PrivateSubnetC"
+                    }, 
+                    {
+                        "Ref": "PrivateSubnetD"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DBSubnetGrp"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "AuthorHub RDS Subnet Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBSubnetGroup"
+        }, 
+        "NATGateway": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATIPAddress", 
+                        "AllocationId"
+                    ]
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::NatGateway"
+        }, 
+        "NATIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc"
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "PrivateRoute": {
+            "DependsOn": "NATGateway", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "NatGatewayId": {
+                    "Ref": "NATGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Private routing table", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PrivateSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone A (Private)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone B (Private)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetC": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone C (Private)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetD": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateD", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone D (Private)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Routing Table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Public routing table", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PublicSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone A (Public)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PublicSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Subnet Availability Zone B (Public)", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SFTPLBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "SFTP Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1024", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "1024"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1024", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "1024"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1024", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "1024"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "SFTP Load Balancer Security Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "SFTPLoadBalancer": {
+            "DependsOn": "SFTPServer", 
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "15", 
+                    "Target": "TCP:22", 
+                    "Timeout": "5", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "SFTPServer"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "22", 
+                        "LoadBalancerPort": "1024", 
+                        "Protocol": "TCP"
+                    }
+                ], 
+                "LoadBalancerName": {
+                    "Fn::Join": [
+                        "-", 
+                        [
+                            "SFTP-Load-Balancer", 
+                            {
+                                "Ref": "Environment"
+                            }
+                        ]
+                    ]
+                }, 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "SFTPLBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }, 
+                    {
+                        "Ref": "PublicSubnetB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "SFTPLoadBalancerR53": {
+            "DependsOn": "SFTPLoadBalancer", 
+            "Properties": {
+                "Comment": "Alias for SFTP AuthorHub", 
+                "HostedZoneId": "ZWEBITPF5WUTE", 
+                "Name": {
+                    "Fn::Join": [
+                        "", 
+                        [
+                            "AH-sftp-", 
+                            {
+                                "Ref": "Environment"
+                            }, 
+                            ".aws.cambridge.org"
+                        ]
+                    ]
+                }, 
+                "ResourceRecords": [
+                    {
+                        "Fn::GetAtt": [
+                            "SFTPLoadBalancer", 
+                            "DNSName"
+                        ]
+                    }
+                ], 
+                "TTL": "300", 
+                "Type": "CNAME"
+            }, 
+            "Type": "AWS::Route53::RecordSet"
+        }, 
+        "SFTPServer": {
+            "DependsOn": "SFTPServerSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "SFTP", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t2.micro", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "SFTPServerSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "SFTP Server", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "SFTPServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "SFTP Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "SFTPLBSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "AuthorHub SFTP Server Security Group", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "SubnetRouteTableAssociationPrivA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPubA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPubB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "AuthorHub"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "AuthorHub VPC", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    }
+}

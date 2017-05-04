@@ -1,0 +1,165 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "AWS External ELB with Security Group and S3 bucket template.",
+	"Parameters": {
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+		"KeyName": {
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+			"Type": "String",
+			"Default" : ""
+		},
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default": "",
+			"Type": "String"
+		},
+		"PublicELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PublicELB2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PublicELB3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PublicELBSubnet1" : {
+			"Description" : "One of Three public subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		
+		"PublicELBSubnet2" : {
+			"Description" : "One of Three public subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		
+		"PublicELBSubnet3" : {
+			"Description" : "One of Three public subnets.",
+			"Default" : "",
+			"Type": "String"
+		}
+	},
+	
+	"Resources" : {
+	
+		"PublicELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 80 and 443",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Ref" : "PublicELB1CIDR"} }, 
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : {"Ref" : "PublicELB1CIDR"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Ref" : "PublicELB2CIDR"} }, 
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : {"Ref" : "PublicELB2CIDR"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Ref" : "PublicELB2CIDR"} }, 
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : {"Ref" : "PublicELB2CIDR"} }
+				],
+				"SecurityGroupEgress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0"} 
+				]
+			}
+		},
+		
+		"S3LogBucket": {
+			"Type": "AWS::S3::Bucket",
+			"DeletionPolicy" : "Retain",
+			"Properties" :{
+				"BucketName" : "aop-elb-log",
+				"LifecycleConfiguration" : {
+					"Rules" : [{
+						"ExpirationInDays": 30,
+						"Status" : "Enabled"
+					} ]
+				}
+			}
+		},
+		
+		"S3LogBucketPolicy": {
+			"Type": "AWS::S3::BucketPolicy",
+			"Properties": {
+				"Bucket": {
+					"Ref": "S3LogBucket"
+				},
+				"PolicyDocument": {
+					"Statement": [ {
+						"Action" : ["S3:*"],
+						"Effect": "Allow",
+						"Resource": {"Fn::Join": ["",["arn:aws:s3:::",{ "Ref": "S3LogBucket" } , "/", "Logs", "/AWSLogs/", "*" ]]},
+						"Principal": "*"
+					} ]
+				}
+			}
+		},
+		
+		"ElasticLoadBalancer": {
+			"DependsOn" : ["S3LogBucket", "S3LogBucketPolicy", "PublicELBSecurityGroup"],
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"Subnets" : [ { "Ref" : "PublicELBSubnet1" }, {"Ref" : "PublicELBSubnet2"}, { "Ref" : "PublicELBSubnet3"} ],
+				"SecurityGroups" : [ { "Fn::GetAtt" : [ "PublicELBSecurityGroup", "GroupId" ] } ],
+				 "Listeners" : [ 
+					{
+						"LoadBalancerPort" : "80",
+						"InstancePort" : "80",
+						"Protocol" : "HTTP"
+					},
+					{
+						"LoadBalancerPort" : "443",
+						"InstancePort" : "443",
+						"Protocol" : "HTTP"
+					}
+				],
+					
+				"HealthCheck": {
+					"Target": "HTTP:80/",
+					"HealthyThreshold": "3",
+					"UnhealthyThreshold": "5",
+					"Interval": "30",
+					"Timeout": "5"
+				},
+				
+				"AccessLoggingPolicy": {
+					"S3BucketName": {
+						"Ref": "S3LogBucket"
+					},
+					"S3BucketPrefix": "Logs",
+					"Enabled": "true",
+					"EmitInterval" : "60"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"PublicELBSecurityGroup": {
+			"Value": {"Ref": "PublicELBSecurityGroup"}
+		},
+		 "S3BucketURL" : {
+			"Value" : { "Fn::Join" : [
+				"", [ "https://", { "Fn::GetAtt" : [ "S3LogBucket", "DomainName" ] } ]
+			] },
+			"Description" : "Name of S3 bucket to hold log content"
+		},
+		"URL" : {
+			"Description" : "URL of the ELB",
+			"Value" :  { "Fn::Join" : [ "", [ "http://", { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}]]}
+		}
+	}
+}

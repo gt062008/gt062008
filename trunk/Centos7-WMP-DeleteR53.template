@@ -1,0 +1,18 @@
+{
+    "Changes": [
+        {
+            "Action": "DELETE", 
+            "ResourceRecordSet": {
+                "Name": "new-wmp.aws.cambridge.org.", 
+                "ResourceRecords": [
+                    {
+                        "Value": "IPADDRESS"
+                    }
+                ], 
+                "TTL": 300, 
+                "Type": "A"
+            }
+        }
+    ], 
+    "Comment": "Delete Route53 A record to new-wmp used by developers ready for new EC2 instance creation"
+}

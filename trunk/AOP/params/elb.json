@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-273cd342"
+  },
+  {
+    "ParameterKey": "PublicSubnets",
+    "ParameterValue": "subnet-a1fafbe7, subnet-954fe7f0, subnet-8c2b91fb"
+  },
+  {
+    "ParameterKey": "LoggingBucket",
+    "ParameterValue": "elblogs-aop"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+  },
+  {
+    "ParameterKey": "CertificateARN",
+    "ParameterValue": "arn:aws:iam::291050698310:server-certificate/integration-cert"
+  }
+]

@@ -1,0 +1,327 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Ecommerce DB instances.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ACS": {
+                "AMI": "ami-d91ad1ae"
+            }, 
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Amazon": {
+                "AMI": "ami-748e2903"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            }
+        }
+    }, 
+    "Parameters": {
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of admin server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RDS MySQL root password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet A", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet B", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of IAM Role associated with S3 access",
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Private Subnet A",
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of SSH keypair for EC2 instances",
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKCentralServerSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Konkart Central server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing VPC", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "EcommMySQLSubnetGroup": {
+            "Properties": {
+                "DBSubnetGroupDescription": "Ecommerce RDS MySQL DB Subnet Group", 
+                "SubnetIds": [
+                    {
+                        "Ref": "DBSubnetA"
+                    }, 
+                    {
+                        "Ref": "DBSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DBSubnetGrp"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce RDS Subnet Group"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBSubnetGroup"
+        }, 
+        "KKDBBuild": {
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKCentralServerSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce-Konakart-DB-Setup"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/bin/yum -y install mysql", 
+                                "echo 'export JAVA_HOME=/usr/lib/jvm/jre' >>/root/.profile", 
+                                "echo 'export HOME=/root' >>/root/.profile", 
+                                ". /root/.profile", 
+                                "/bin/mkdir /usr/java", 
+                                "/bin/ln /usr/lib/jvm/jre /usr/java/default", 
+                                "cd /tmp", 
+                                "/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli", 
+                                "/bin/mkdir /root/.aws", 
+                                "echo \"[default]\" >/root/.aws/credentials", 
+                                "echo \"aws_access_key_id = AKIAJOTSLEWDNIASSXCQ\" >>/root/.aws/credentials", 
+                                "echo \"aws_secret_access_key = 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\" >>/root/.aws/credentials", 
+                                "echo \"[default]\" >>/root/.aws/config", 
+                                "echo \"region = eu-west-1\" >>/root/.aws/config", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/create_konakart_db.sql /tmp/create_konakart_db.sql", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/konakart_demo.sql /tmp/konakart_demo.sql", 
+                                "/usr/bin/mysql -u root -p -h konakart-db-infra-dev.aws.cambridge.org  </tmp/create_konakart_db.sql", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "MySQLDatabase": {
+            "Properties": {
+                "AllocatedStorage": "100", 
+                "DBInstanceClass": "db.t2.small", 
+                "DBName": "Ecommerce", 
+                "DBSubnetGroupName": {
+                    "Ref": "EcommMySQLSubnetGroup"
+                }, 
+                "Engine": "MySQL", 
+                "EngineVersion": "5.6.21", 
+                "MasterUserPassword": {
+                    "Ref": "DBPassword"
+                }, 
+                "MasterUsername": "root", 
+                "PubliclyAccessible": "false", 
+                "Tags": [
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce RDS MySQL database"
+                    }
+                ], 
+                "VPCSecurityGroups": [
+                    {
+                        "Ref": "MySQLSecurityGroup"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBInstance"
+        }, 
+        "MySQLSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "RDS MySQL VPC Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }, 
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralServerSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce RDS MySQL DB SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }
+    }
+}

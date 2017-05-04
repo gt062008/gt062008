@@ -1,0 +1,148 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Infra External ELB with Security Group.",
+	"Parameters": {
+		"HostName": {
+			"Description" : "Base hostname for access to services",
+			"Type": "String",
+			"Default" : "external-elb"
+		},
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "Hub",
+			"Type" : "String"
+		},
+		"AvailabilityZone" : {
+			"Description" : "AvailabilityZone",
+			"Default" : "eu-west",
+			"Type" : "String"
+		},
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default": "vpc-a94025cc",
+			"Type": "String"
+		},
+		"PublicSubnets" : {
+			"Type" : "CommaDelimitedList",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-67feaa02, subnet-b2dfa3c5"
+		},
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "infra.cambridge.org"
+		},  
+		"DNSZoneId" : {
+			"Default" : "",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String"
+		},
+		"CertificateARN" : {
+			"Description" : "Certficate to use to encrypt HTTPS traffic",
+			"Type" : "String"
+		}
+	},
+	
+	"Resources" : {
+	
+		"PublicELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 80 and 443",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+				    { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "185.20.164.28/32" },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "185.20.164.28/32" },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "185.20.164.28/32" }
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-secgroup" ] ] }
+				}, {
+					"Key" : "infra_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "infra_role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "Infra"
+				}]
+			}
+		},
+		
+		"ElasticLoadBalancer": {
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"Subnets" : { "Ref" : "PublicSubnets" },
+				"SecurityGroups" : [ { "Fn::GetAtt" : [ "PublicELBSecurityGroup", "GroupId" ] } ],
+				 "Listeners" : [ 
+					{
+						"LoadBalancerPort" : "443",
+						"InstancePort" : "80",
+						"Protocol" : "HTTPS",
+						"SSLCertificateId" : { "Ref" : "CertificateARN" }
+					}
+				],
+					
+				"HealthCheck": {
+					"Target": "HTTP:80/",
+					"HealthyThreshold": "3",
+					"UnhealthyThreshold": "5",
+					"Interval": "30",
+					"Timeout": "5"
+				},
+				"Tags" : [ {
+					"Key" : "infra_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+
+		"elbHostname" : {
+			"DependsOn" : "ElasticLoadBalancer",
+			"Type" : "AWS::Route53::RecordSet",
+			"Properties" : {
+				"HostedZoneId" : { "Ref" : "DNSZoneId" },
+				"Comment" : "CNAME for public ELB",
+				"Name" :  { "Fn::Join" : [ "", [ { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+				"Type" : "CNAME",
+				"TTL" : "300",
+				"ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] } ]
+			}
+		}
+	},
+
+	"Outputs" : {
+		"PublicELBSecurityGroup": {
+			"Value": {"Ref": "PublicELBSecurityGroup"}
+		},
+		"ELBName" : {
+			"Description" : "Name of the ELB",
+			"Value" : { "Ref" : "ElasticLoadBalancer" }
+		}
+	}
+}
+

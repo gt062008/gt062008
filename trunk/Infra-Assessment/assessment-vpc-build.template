@@ -1,0 +1,1553 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+
+    "Description": "CloudFormation script for Assessment AWS environment", 
+    
+    "Parameters": {
+        "SSHKeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+            "Default" : "assessment-key"
+        }
+    }, 
+    
+    "Mappings": {
+        "AWSAMI": {
+            "AMAZONLINUX": {
+                "AMI": "ami-ff527ecf"
+            }, 
+            "NAT": {
+                "AMI": "ami-2dae821d"
+            }
+        }, 
+        
+        "CUPSubnetConfig": {
+            "CAMFW": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINT159": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "NYFW1": {
+                "CIDR": "38.122.225.74/32"
+            },
+            "MANILLAFW1": {
+                "CIDR": "121.97.34.10/32"
+            } 
+        }, 
+        
+        "VPCSubnetConfig": {
+            "VPC": {
+                "CIDR": "10.10.19.64/26"
+            },
+            "Public":  {
+                "CIDR": "10.10.19.64/28"
+            },
+            "PrivateWeb": {
+                "CIDR": "10.10.19.80/28"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.19.96/28"
+            }, 
+            "PrivateDBB": {
+			    "CIDR": "10.10.19.112/28"
+			}
+			
+        },
+        
+        "VPCTags": {
+            "Platform": {
+                "Tag": "Infra-Assessment"
+            },
+            "Application": {
+                "Tag": "Assessment Web Server"
+            },
+            "Environment": {
+                "Tag": "Sandbox"
+            },
+            "Business-Stream": {
+                "Tag": "Infrastructure"
+            },
+            "Owner": {
+                "Tag": "Andy Phillips"
+            }
+        },
+        
+        "IamRole": {
+            "S3ReadAccess": {
+                "Role": "assess-s3-read"
+            }
+        }
+    }, 
+    
+    "Resources": {
+        "BastionSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT159", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Bastion SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "BastionSecurityGroupWfH": {
+            "Properties": {
+                "GroupDescription": "Defines working-from-home access to the Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "90.212.255.145/32",
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Bastion WfH SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+
+        "BastionIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "BastionServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        
+        "BastionServer": {
+            "DependsOn": "BastionSecurityGroup",
+            "DependsOn": "BastionSecurityGroupWfH",
+			"DependsOn": "NATDevice",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "AMAZONLINUX", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "IamInstanceProfile": {
+                   "Fn::FindInMap": [
+                        "IamRole",
+                        "S3ReadAccess",
+                        "Role"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "BastionSecurityGroup"    
+                    },
+                    {
+                        "Ref": "BastionSecurityGroupWfH"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Bastion Server"
+                    }
+                ],
+				"UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash",
+								"/usr/bin/yum -y update",
+								"/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli",
+                                "/bin/mkdir -p /opt/aws/apitools", 
+                                "cd /opt/aws/apitools", 
+                                "wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip", 
+                                "/usr/bin/unzip ec2-api-tools.zip", 
+                                "/bin/rm ec2-api-tools.zip",                                                                  
+                                "/usr/bin/aws s3 cp s3://cup-assess-files/assessment-key.pem /home/ec2-user/.ssh/assessment-key.pem", 
+                                "/usr/bin/aws s3 cp s3://cup-assess-files/assessment-config /home/ec2-user/.ssh/config", 
+                                "/bin/chown -R ec2-user:ec2-user /home/ec2-user/.ssh", 
+                                "/bin/chmod 700 /home/ec2-user/.ssh", 
+                                "/bin/chmod 600 /home/ec2-user/.ssh/*",				
+                                "/usr/bin/yum clean all",
+                                "/usr/bin/yum check-update",
+                                "exit"
+                            ]
+                        ]
+                    }
+                }				
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        
+        "LBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT159", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }  
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Assessment Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment ELB SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "WebLoadBalancer": {
+            "Properties": {
+                "CrossZone": "false", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": "Assessment-ELB", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "LBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnet"
+                    }
+                ], 
+                "Tags": [
+                   {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Assessment Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment ELB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        
+        "WebServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Web Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "BastionSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    },
+					{
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "80"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Web Server"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Web Server SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Internet Gateway"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+
+        "NATIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "NAT device Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "VPCSubnetConfig", 
+                                "VPC", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment NAT SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+
+        "NATDevice": {
+            "DependsOn": "NATSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "NAT", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t1.micro", 
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "NATSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment NAT Device"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+           
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Public routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        
+        "PublicSubnet": {
+            "Properties": {
+                "AvailabilityZone": "us-west-2a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "Public", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Subnet (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+
+        "PrivateSubnetWeb": {
+            "Properties": {
+                "AvailabilityZone": "us-west-2a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateWeb", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Subnet (Private Web)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        
+        "PrivateSubnetDB": {
+            "Properties": {
+                "AvailabilityZone": "us-west-2a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateDB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Subnet (Private DB)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+		
+        "PrivateSubnetDBB": {
+            "Properties": {
+                "AvailabilityZone": "us-west-2b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateDBB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment Subnet (Private DB B)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+        
+        "SubnetRouteTableAssociationPub": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }
+                            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+
+        "SubnetRouteTableAssociationPrivWeb": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetWeb"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        
+        "SubnetRouteTableAssociationPrivDB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetDB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        
+		"VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                },
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true", 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Assessment VPC"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    },
+    
+    "Outputs": {
+        "VPCId": {
+            "Description": "Identity of the created VPC",
+                "Value": { "Ref": "VPC" }
+        }
+    }
+}

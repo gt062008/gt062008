@@ -1,0 +1,6 @@
+The script given below will generate the script to execute clean up script.
+ 
+1
+SELECT 'USE [' + d.name + N']' + CHAR(13) + CHAR(10) +'ALTER DATABASE "' + d.name + '" SET RECOVERY SIMPLE'+ CHAR(13) + CHAR(10) + 'DBCC SHRINKFILE (N''' + mf.name + N''' , 100, TRUNCATEONLY)' + CHAR(13) + CHAR(10) + 'ALTER DATABASE "' + d.name + '" SET RECOVERY FULL' + CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10) + 'Go' FROM sys.master_files mf JOIN sys.databases d ON mf.database_id = d.database_id WHERE d.database_id > 4 and mf.name like '%log';
+ 
+The result of this script can be executed on another Query page to clean the transaction logs to limit it to 100 MB size.

@@ -1,0 +1,15 @@
+[
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z3LZDTQKNP5I6F"
+  },
+  {
+    "ParameterKey": "EnvType",
+    "ParameterValue": "staging"
+  },
+
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+  }
+]

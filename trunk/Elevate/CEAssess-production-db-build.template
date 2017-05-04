@@ -1,0 +1,213 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Production CEAccess MYSQL DB instance.",
+	"Parameters": {
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of admin server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+		"AppServerSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of application server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RDS MySQL root password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "rgh34sf669"
+        },
+	        "DBSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet A", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet B", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },	
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing CEA VPC", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    },
+	"Resources": {
+		"CEAMySQLSubnetGroup": {
+            "Properties": {
+                "DBSubnetGroupDescription": "CEA RDS MySQL DB Subnet Group", 
+                "SubnetIds": [
+                    {
+                        "Ref": "DBSubnetA"
+                    }, 
+                    {
+                        "Ref": "DBSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    },
+					{
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    },
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DBSubnetGrp"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production CEAccess RDS Subnet Group"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBSubnetGroup"
+        },		
+		"MySQLDatabase": {
+            "Properties": {
+                "AllocatedStorage": "100", 
+                "DBInstanceClass": "db.t2.small", 
+                "DBName": "taew", 
+                "DBSubnetGroupName": {
+                    "Ref": "CEAMySQLSubnetGroup"
+                }, 
+                "Engine": "MySQL", 
+                "EngineVersion": "5.6.22", 
+                "MasterUserPassword": {
+                    "Ref": "DBPassword"
+                }, 
+                "MasterUsername": "root", 
+                "PubliclyAccessible": "false",
+				"MultiAZ": "true",				
+                "Tags": [
+                    {
+                        "Key": "Name", 
+                        "Value": "Production CEAccess RDS MySQL database"
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    },
+					{
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    },
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "RDS MySQL"
+                    }
+                ], 
+                "VPCSecurityGroups": [
+                    {
+                        "Ref": "MySQLSecurityGroup"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBInstance"
+        }, 
+        "MySQLSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "MySQL DB Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    },
+					{
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppServerSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    },
+					{
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    },
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production MySQL DB SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }
+    },
+	"Outputs": {
+		"RdsDbId": {
+			"Value" : { "Ref" : "MySQLDatabase" }
+		}
+    }
+}

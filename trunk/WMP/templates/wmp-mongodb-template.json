@@ -1,0 +1,447 @@
+{
+	"AWSTemplateFormatVersion":"2010-09-09",
+	"Description":"WMP Mongodb cluster 2 nodes, 1 per AZ",
+	"Parameters":{
+	
+		"HostName": {
+			"Description" : "Base hostname for services",
+			"Type": "String",
+			"Default" : "mongo"
+		},
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "aws.cambridge.org"
+		},
+	    "DNSZoneId" : {
+			"Default" : "/hostedzone/Z3OTU08UN2UFD0",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String",
+			"AllowedValues" : ["/hostedzone/Z3OTU08UN2UFD0", "/hostedzone/ZWEBITPF5WUTE"]
+		},
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to Hosts",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "255",
+			"AllowedPattern": "[\\x20-\\x7E]*",
+			"Default":"wmp-live-key",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		"EnvType" : {
+			"Description" : "Environment Type",
+			"Default" : "Dev",
+			"Type" : "String",
+			"AllowedValues" : ["Production", "Dev", "UAT", "Staging"],
+			"ConstraintDescription" : "must specify Production, Dev, UAT or Staging"
+		},
+		"InstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "t2.medium",
+			"AllowedValues": [ "t2.micro", "t2.small", "t2.medium", "m3.medium", "m3.large", "m3.xlarge", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		"NodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"1",
+			"MaxValue":"1",
+			"Default":"1"
+		},
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default": "vpc-",
+			"Type": "String"
+		},
+		"AvailabilityZone1": {
+			"Description": "One of two Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a"
+			},
+		"AvailabilityZone2": {
+			"Description": "Two of two Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b"
+			},
+		"PrivateDataSubnets" : {
+			"Type" : "CommaDelimitedList",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-, subnet-"
+		},
+	
+		"PrivateAppIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private App",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.41.128/27, 10.10.41.160/27"
+		},
+		"MonitoringSecGroup" : {
+			"Description" : "Monitoring security group",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"VPNSecGroup" : {
+			"Description" : "VPN Security Group",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"CISecGroup" : {
+			"Description" : "CI Builder Security Group",
+			"Type" : "String",
+			"Default" : ""
+		},
+		"VolumeSize" : {
+			"Description" : "Size of EBS Volume",
+			"Type" : "Number",
+			"Default" : "1000"
+		},
+		"BaseAmi" : {
+			"Default" : "ami-0ee33a79",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		}
+	},
+	
+	"Resources": {
+			
+		"PrivateELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 8080",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "27017", "ToPort" : "27017", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{ "IpProtocol" : "tcp", "FromPort" : "27017", "ToPort" : "27017", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{ "IpProtocol" : "tcp", "FromPort" : "27017", "ToPort" : "27017", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "27017", "ToPort" : "27017", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "28017", "ToPort" : "28017", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "28017", "ToPort" : "28017", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "CISecGroup"}}				
+				],
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "-mongodb-sg" ] ] }
+				}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP"
+				}]
+			}
+		},
+			
+		"InstanceSecurityGroup":{
+			"Type":"AWS::EC2::SecurityGroup",
+			"Properties":{
+				"GroupDescription":"Enable SSH access and HTTP access on the inbound port",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress":[
+					{"IpProtocol":"tcp", "FromPort":"27017", "ToPort":"27017", "SourceSecurityGroupId" : { "Ref" : "PrivateELBSecurityGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"28017", "ToPort":"28017", "SourceSecurityGroupId" : { "Ref" : "PrivateELBSecurityGroup"}},			
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "CISecGroup"}}						
+				],
+				"Tags" : [ {
+					"Key" : "Name",
+						"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "-mongo-sg" ] ] }
+					}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName"}
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP"
+				}]
+			}
+		},
+		"InstanceSecurityGroupIngressMongo":{
+			"Type":"AWS::EC2::SecurityGroupIngress",
+			"Properties":{
+				"IpProtocol":"tcp", "GroupId": {"Fn::GetAtt": ["InstanceSecurityGroup","GroupId"]}, "FromPort":"27017", "ToPort":"27017", "SourceSecurityGroupId" : {"Ref" : "InstanceSecurityGroup"}
+			}
+		},
+		"InstanceSecurityGroupIngressMongoMonitor":{
+			"Type":"AWS::EC2::SecurityGroupIngress",
+			"Properties":{
+				"IpProtocol":"tcp", "GroupId": {"Fn::GetAtt": ["InstanceSecurityGroup","GroupId"]}, "FromPort":"28017", "ToPort":"28017", "SourceSecurityGroupId" : {"Ref" : "InstanceSecurityGroup"}
+			}
+		},
+
+		"ServerGroup1":{
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"VPCZoneIdentifier" : [{ "Fn::Select" : [ "0", {"Ref" : "PrivateDataSubnets"} ] }],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig1"},
+				"MinSize":"1",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"LoadBalancerNames" : [{"Ref" : "ElasticLoadBalancer1"}],
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, "1", { "Ref" : "EnvType"} ] ] },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP",
+					"PropagateAtLaunch" : "true"
+				}]
+			}
+		},
+		
+		"ServerGroup2":{
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"VPCZoneIdentifier" : [{ "Fn::Select" : [ "1", {"Ref" : "PrivateDataSubnets"} ] }],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig2"},
+				"MinSize":"1",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"LoadBalancerNames" : [{"Ref" : "ElasticLoadBalancer2"}],
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, "2", { "Ref" : "EnvType"} ] ] },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP",
+					"PropagateAtLaunch" : "true"
+				}]
+			}
+		},
+		
+		"LaunchConfig1":{
+		"DependsOn" : ["InstanceSecurityGroup"],
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups" : [{"Ref" : "InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"ImageId":{ "Ref" : "BaseAmi" },
+				
+				"BlockDeviceMappings": [{
+                    "DeviceName": "/dev/sdb",
+                    "Ebs": {
+                        "VolumeType": "gp2",
+                        "VolumeSize": { "Ref" : "VolumeSize"}
+                    }
+                }],
+
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+					"DOMAIN=.",  { "Ref" : "DomainName" }, "\n",
+					"HOSTNAME=", { "Ref" : "HostName" }, "-$INSTANCE\n",
+					"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+					"if grep -q '7' /etc/redhat-release; then\n",
+					"  hostnamectl set-hostname $HOSTNAME\n",
+					"else\n",
+					"  hostname $HOSTNAME\n",
+					" sed -i -e \"s/^HOSTNAME=.*/HOSTNAME=$HOSTNAME$DOMAIN/\" /etc/sysconfig/network\n",
+					"fi\n"
+				]]}}
+			}
+		},
+		
+		"LaunchConfig2":{
+			"DependsOn" : ["InstanceSecurityGroup"],
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups" : [{"Ref" : "InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"ImageId":{ "Ref" : "BaseAmi" },
+				
+				"BlockDeviceMappings": [{
+                    "DeviceName": "/dev/sdb",
+                    "Ebs": {
+                        "VolumeType": "gp2",
+                        "VolumeSize": { "Ref" : "VolumeSize"}
+                    }
+                }],
+
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+					"DOMAIN=.",  { "Ref" : "DomainName" }, "\n",
+					"HOSTNAME=", { "Ref" : "HostName" }, "-$INSTANCE\n",
+					"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+					"if grep -q '7' /etc/redhat-release; then\n",
+					"  hostnamectl set-hostname $HOSTNAME\n",
+					"else\n",
+					"  hostname $HOSTNAME\n",
+					" sed -i -e \"s/^HOSTNAME=.*/HOSTNAME=$HOSTNAME$DOMAIN/\" /etc/sysconfig/network\n",
+					"fi\n"
+				]]}}
+			}
+		},
+		
+		"ElasticLoadBalancer1":{
+			"DependsOn": "PrivateELBSecurityGroup",
+			"Type":"AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"LoadBalancerName" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "1", { "Ref" : "EnvType"} ] ] },
+				"AppCookieStickinessPolicy":[{"CookieName":"SessionID","PolicyName":"MSession" }],
+				"Subnets" : [{ "Fn::Select" : [ "0", {"Ref" : "PrivateDataSubnets"} ] }],
+				"Scheme" : "internal",
+				"SecurityGroups" : [{ "Fn::GetAtt" : [ "PrivateELBSecurityGroup", "GroupId" ] }],
+				"ConnectionDrainingPolicy": {
+					"Enabled":"false"
+				},
+				"CrossZone":"false",
+				"Listeners": [ {
+					"LoadBalancerPort": "27017",
+					"InstancePort": "27017",
+					"Protocol": "TCP"
+				} ],
+			
+				"HealthCheck":{
+					"Target":"TCP:27017",
+					"HealthyThreshold":"3",
+					"UnhealthyThreshold":"5",
+					"Interval":"10",
+					"Timeout":"5"
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "-mongodb-elb" ] ] }
+				}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName"}
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP"
+				}]	
+			}
+		},
+		"ElasticLoadBalancer2":{
+			"DependsOn": "PrivateELBSecurityGroup",
+			"Type":"AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"LoadBalancerName" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "2", { "Ref" : "EnvType"} ] ] },
+				"AppCookieStickinessPolicy":[{"CookieName":"SessionID","PolicyName":"MSession" }],
+				"Subnets" : [{ "Fn::Select" : [ "1", {"Ref" : "PrivateDataSubnets"} ] }],
+				"Scheme" : "internal",
+				"SecurityGroups" : [{ "Fn::GetAtt" : [ "PrivateELBSecurityGroup", "GroupId" ] }],
+				"ConnectionDrainingPolicy": {
+					"Enabled":"false"
+				},
+				"CrossZone":"false",
+				"Listeners": [ {
+					"LoadBalancerPort": "27017",
+					"InstancePort": "27017",
+					"Protocol": "TCP"
+				} ],
+			
+				"HealthCheck":{
+					"Target":"TCP:27017",
+					"HealthyThreshold":"3",
+					"UnhealthyThreshold":"5",
+					"Interval":"10",
+					"Timeout":"5"
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "-mongodb-elb" ] ] }
+				}, {
+					"Key" : "Environment",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Role",
+					"Value" : { "Ref" : "HostName"}
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "WMP"
+				}]	
+			}
+		},
+
+		"MongoHostname1" : {
+			"Type" : "AWS::Route53::RecordSet",
+			"Properties" : {
+				"HostedZoneId" : { "Ref" : "DNSZoneId" },
+				"Comment" : "CNAME for Mongo1 service ELB",
+				"Name" :  { "Fn::Join" : [ "-", [ "WMP", { "Ref" : "HostName" }, "1", { "Ref" : "EnvType" }, { "Ref" : "DomainName"} ] ] },
+				"Type" : "CNAME",
+				"TTL" : "300",
+				"ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer1", "DNSName" ] } ]
+			}
+		},
+		"MongoHostname2" : {
+			"Type" : "AWS::Route53::RecordSet",
+			"Properties" : {
+				"HostedZoneId" : { "Ref" : "DNSZoneId" },
+				"Comment" : "CNAME for Mongo1 service ELB",
+				"Name" :  { "Fn::Join" : [ "-", [ "WMP", { "Ref" : "HostName" }, "2", { "Ref" : "EnvType" }, { "Ref" : "DomainName"} ] ] },
+				"Type" : "CNAME",
+				"TTL" : "300",
+				"ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer2", "DNSName" ] } ]
+			}
+		}
+	},
+	
+	"Outputs":{
+	"URL1": {
+			"Description": "URL of the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "ElasticLoadBalancer1", "DNSName" ] } ] ] }
+		},
+	"URL2": {
+			"Description": "URL of the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "ElasticLoadBalancer2", "DNSName" ] } ] ] }
+		}
+	}
+}

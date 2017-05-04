@@ -1,0 +1,171 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Ben Prudence 09/12/2016 - Deploy NASA APEX EC2 instance",
+
+  "Parameters" : {
+
+    "pKeyPair": {
+      "Description": "Name of an existing EC2 key pair",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "Must be an existing key pair"
+    },
+
+    "pSubnetId" : {
+      "Description" : "Instance Subnet ID",
+      "Type" : "String",
+      "Default" : "subnet-7ed9b426",
+      "AllowedPattern" : "subnet-[a-f0-9]*",
+      "ConstraintDescription" : "Must start subnet-"
+    },
+
+    "pAZ" : {
+      "Description" : "Availability Zone",
+      "Type" : "String",
+      "Default" : "eu-west-1a",
+      "AllowedPattern" : "eu-west-1[a-c]*",
+      "ConstraintDescription" : "Must start eu-west-1"
+    },
+
+    "pAmiId" : {
+      "Description" : "AMI ID",
+      "Type" : "String",
+      "Default" : "ami-edb9069e",
+      "AllowedPattern" : "ami-[a-f0-9]*",
+      "ConstraintDescription" : "Must start ami-"
+    },
+
+    "pTProject" : {
+      "Description" : "Project Number - Project Name / Cost Code",
+      "Type" : "String",
+      "Default" : "51410"
+    },
+
+    "pTEnvironmentType" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "production"
+    },
+
+    "pTEnvironmentUse" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "PR"
+    },
+
+    "pTEnvironmentID" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "NASPR01"
+    },
+
+    "pTName" : {
+      "Description" : "Refer to Naming Standards",
+      "Type" : "String",
+      "Default" : "D1OPPRONAS001"
+    },
+
+    "pTRole" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "APP"
+    },
+
+    "pTApplication" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "NASA APEX"
+    },
+
+    "pTStartCron" : {
+      "Description" : "AutoStart Time (Cron Format)",
+      "Type" : "String",
+      "Default" : "30 08 * * MON-FRI"
+    },
+
+    "pTStopCron" : {
+      "Description" : "AutoStop Time (Cron Format)",
+      "Type" : "String",
+      "Default" : "45 17 * * *"
+    },
+
+    "pTOperatingSystem" : {
+      "Description" : "Refer to Tagging Strategy for Key",
+      "Type" : "String",
+      "Default" : "CentOS 6.0"
+    }
+
+  },
+
+  "Resources": {
+
+   "rEBSu01" : {
+     "Type" : "AWS::EC2::Volume",
+     "Properties" : {
+        "Size" : "2",
+        "Encrypted" : "false",
+        "AvailabilityZone" : { "Ref" : "pAZ" },
+        "Tags" : [
+          { "Key" : "Name", "Value" : { "Ref" : "pTName" } },
+          { "Key" : "DriveMount", "Value" : "/u01" },
+          { "Key" : "Project", "Value" : { "Ref" : "pTProject" } },
+          { "Key" : "EnvironmentType", "Value" : { "Ref" : "pTEnvironmentType" } },
+          { "Key" : "EnvironmentUse", "Value" : { "Ref" : "pTEnvironmentUse" } },
+          { "Key" : "EnvriomentID", "Value" : { "Ref" : "pTEnvironmentID" } },
+          { "Key" : "Application", "Value" : { "Ref" : "pTApplication" } }
+        ]
+     }
+  },
+
+    "rD1OPPRONAS001" : {
+      "Type" : "AWS::EC2::Instance",
+	  "DependsOn" : "rEBSu01",
+	  "Properties" : {
+        "Volumes" : [
+          { "VolumeId" : { "Ref" : "rEBSu01" }, "Device" : "/dev/sdf" }
+        ],
+        "ImageId" : { "Ref" : "pAmiId"},
+        "InstanceInitiatedShutdownBehavior" : "stop",
+        "InstanceType" : "t2.micro",
+        "KeyName" : { "Ref" : "pKeyPair"},
+        "SecurityGroupIds" : [
+         "sg-90e18df6"
+        ],
+        "SubnetId" : { "Ref" : "pSubnetId"},
+        "Tags" : [
+         { "Key" : "Project", "Value" : { "Ref" : "pTProject"} },
+         { "Key" : "EnvironmentType", "Value" : { "Ref" : "pTEnvironmentType"} },
+         { "Key" : "EnvironmentUse", "Value" : { "Ref" : "pTEnvironmentUse"} },
+         { "Key" : "EnvriomentID", "Value" : { "Ref" : "pTEnvironmentID"} },
+         { "Key" : "Name", "Value" : { "Ref" : "pTName"} },
+         { "Key" : "Role", "Value" : { "Ref" : "pTRole"} },
+         { "Key" : "Application", "Value" : { "Ref" : "pTApplication"} },
+         { "Key" : "StartCron", "Value" : { "Ref" : "pTStartCron"} },
+         { "Key" : "StopCron", "Value" : { "Ref" : "pTStopCron"} },
+         { "Key" : "OperatingSystem", "Value" : { "Ref" : "pTOperatingSystem"} }
+        ],
+        "UserData" : {"Fn::Base64" : { "Fn::Join" : ["\n", [
+		  "#!/bin/bash",
+		  "mkfs -t ext4 /dev/xvdf",
+		  "echo \"/dev/xvdf /u01 ext4 defaults 0 0\" >>/etc/fstab",
+          "mkdir -p /u01",
+		  "mount /u01",
+		  "yum -y install git",
+		  "cd /u01",
+		  "git init",
+		  "git clone https://github.com/nasa/QuIP.git"		  
+		]]}}
+      }
+    }
+  },
+
+  "Outputs": {
+
+    "InstanceId": {
+      "Description": "Instance ID of the newly created instnace",
+      "Value": { "Ref": "rD1OPPRONAS001" }
+    }
+
+  }
+
+}

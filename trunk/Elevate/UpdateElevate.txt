@@ -1,0 +1,75 @@
+On Web application server as root
+
+cd /var
+mv www www-date
+mkdir www
+
+cd /var/www
+/usr/bin/wget http://cup.custom-content.com/test_and_assess/www.tar.gz
+/bin/tar -zxf www.tar.gz
+/bin/rm www.tar.gz
+
+/usr/bin/aws s3 cp s3://cup-cea-files/htpasswd /var/www/.htpasswd
+/usr/bin/aws s3 cp s3://cup-cea-files/htaccess /var/www/html/admin/.htaccess
+
+/bin/chmod -R 755 /var/www/html/excelexports
+
+vi /var/www/config/config.ini swap existing for xxxxx.eu-west-1.rds.amazonaws.com
+
+/bin/chown -R apache:apache /var/www
+
+Optional clearing of database
+	        cd /tmp
+		/usr/bin/wget http://cup.custom-content.com/test_and_assess/db_empty.sql
+		mysql -u root -p -h xxxxx.eu-west-1.rds.amazonaws.com < /tmp/db_empty.sql
+		rm /tmp/db_empty.sql
+
+apachectl graceful
+
+test with 
+curl -v http://localhost
+
+----------------------------------------------------
+partial update
+cd /var
+cp -pr www www-date
+
+cd /var/www
+/usr/bin/wget http://cup.custom-content.com/test_and_assess/test_and_assess_patch_29-06-15.tar.gz
+/bin/tar -zxf test_and_assess_patch_29-06-15.tar.gz
+
+/bin/chown -R apache:apache /var/www
+/bin/rm test_and_assess_patch_29-06-15.tar.gz
+
+apachectl graceful
+
+test with 
+curl -v http://localhost
+----------------------------------------------
+Update using RPM package
+the RPM package backups installs and restarts httpd
+
+The RPM is produced in Bamboo and pushes out the package to a repository td.repo which is accessible by all servers
+
+The repository for code is here:
+http://svn.cup.cam.ac.uk/repos/OnlineContent/Elevate/${bamboo.setSvnBranch}/
+this currently equates to:
+http://svn.cup.cam.ac.uk/repos/OnlineContent/Elevate/branches/rpmbuild/SOURCES/webserver/
+
+with seperate sub folders for apache and library
+
+I have a local svn repository here \\userhome\a-h\ccox\svnelevatecode which i update and then commit changes to obove
+
+The spec file is here
+http://svn.cup.cam.ac.uk/repos/Others/Atlassian/Bamboo/ELE-15.0.00/cup-edu-ele-15.0.00.spec
+
+
+Therefore all you need do is run following after the package has been updated.
+
+yum clean all
+yum update cup-education-elevate
+
+test the webserver is working with
+curl -v http://localhost
+
+Lancashire digital or their replacement will then have to do other tasks to finish the update

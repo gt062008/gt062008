@@ -1,0 +1,1633 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Production CEAssess AWS environment", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            },
+			"CAMINFRA2": {
+                "CIDR": "91.240.2.62/32"
+            },
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            },
+			"LANCDIG": {
+                "CIDR": "146.255.110.202/32"
+            },
+			"EXTERNALACCESS": {
+                "CIDR": "0.0.0.0/0"
+            }, 
+            "WIRELESS": {
+                "CIDR": "192.153.213.50/32"
+            },
+            "NY-1": {
+                "CIDR": "38.122.225.74/32"
+            },
+            "NY-2": {
+                "CIDR": "65.202.160.242/32"
+            },
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            },
+			"MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateApp": {
+                "CIDR": "10.10.18.144/28"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.18.160/28"
+            }, 
+            "PublicA": {
+                "CIDR": "10.10.18.128/28"
+            },
+			"PublicB": {
+                "CIDR": "10.10.18.208/28"
+            },
+			"PrivateAppB": {
+                "CIDR": "10.10.18.192/28"
+            }, 
+			"PrivateDBB": {
+			    "CIDR": "10.10.18.176/28"
+			},
+			"VPC": {
+                "CIDR": "10.10.18.128/25"
+            }
+        }
+    }, 
+    "Parameters": {
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing IAM Role for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "ceareadS3"
+        },
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "cea-live-key"
+        }
+    }, 
+    "Resources": {
+        "AdminSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+					    "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+					    "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "LANCDIG", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "SubnetConfig", 
+                                "PrivateApp", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8140", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8140"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "SubnetConfig", 
+                                "PrivateAppB", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8140", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8140"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "SubnetConfig", 
+                                "PrivateAppB", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Admin Server Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AdminIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AdminServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AdminServer": {
+            "DependsOn": "AdminSecurityGroup",
+			"DependsOn": "NATDevice",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "IamInstanceProfile": {
+                   "Ref": "IamRole"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AdminSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Admin Bastion Server"
+                    }
+                ],
+				"UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash",
+								"/usr/bin/yum -y update",
+								"/usr/bin/yum install -y mysql",
+                                "/usr/sbin/groupadd -g 522 ceadev", 
+                                "/usr/sbin/useradd -u 521 -g ceadev -c \"CEA Developer account\" ceadev", 
+                                "cd /home/ceadev", 
+                                "/bin/mkdir .ssh", 
+                                "echo 'export JAVA_HOME=/usr/lib/jvm/jre' >>/root/.profile", 
+                                "echo 'export HOME=/root' >>/root/.profile", 
+                                ". /root/.profile", 
+                                "/bin/mkdir /usr/java", 
+                                "/bin/ln /usr/lib/jvm/jre /usr/java/default", 
+                                "cd /tmp", 
+                                "/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/cea-live-key.pem /home/ec2-user/.ssh/cea-live-key.pem", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/cea-config /home/ec2-user/.ssh/config", 
+                                "/bin/chown -R ec2-user:ec2-user /home/ec2-user/.ssh", 
+                                "/bin/chmod 700 /home/ec2-user/.ssh", 
+                                "/bin/chmod 600 /home/ec2-user/.ssh/*",				
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/cea-dev-key.pem /home/ceadev/.ssh/cea-dev-key.pem", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/ceadev-config /home/ceadev/.ssh/config",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/authorizeddev /home/ceadev/.ssh/authorized_keys",
+                                "/bin/chown -R ceadev:ceadev /home/ceadev/.ssh", 
+                                "/bin/chmod 700 /home/ceadev/.ssh", 
+                                "/bin/chmod 600 /home/ceadev/.ssh/*",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/cup.repo /etc/yum.repos.d/cup.repo",
+								"/usr/bin/yum clean all",
+                                "/usr/bin/yum check-update",
+                                "/usr/bin/yum install -y opsview-agent",
+								"/usr/bin/yum install -y java-1.7.0-openjdk.x86_64",
+								"/bin/mkdir -p /opt/aws/apitools", 
+                                "cd /opt/aws/apitools", 
+                                "wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip", 
+                                "/usr/bin/unzip ec2-api-tools.zip", 
+                                "/bin/rm ec2-api-tools.zip", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/safesnap.sh /usr/local/bin/safesnap.sh",
+								"/bin/chmod 755 /usr/local/bin/safesnap.sh",
+                                "exit"
+                            ]
+                        ]
+                    }
+                }				
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "LBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    },
+					                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "LANCDIG", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "LANCDIG", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "EXTERNALACCESS", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "EXTERNALACCESS", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Production Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Elastic Load Balancer Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AppLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "AppServer"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    },
+					{
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "443", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ],
+						"SSLCertificateId" : "arn:aws:iam::369408176762:server-certificate/wildcardcambridge.org2048Aug2016",
+                        "Protocol": "HTTPS"
+                    }
+                ], 
+                "LoadBalancerName": "CEAssess-Prod-Load-Balancer", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "LBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production CEAssess Server Load Balancer"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "AppServer": {
+            "DependsOn": "AppServerSecurityGroup",
+			"DependsOn": "NATDevice",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium",
+				"IamInstanceProfile": {
+                   "Ref": "IamRole"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppServerSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "web server"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Application Server"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/bin/yum -y update",
+								"/usr/bin/yum install -y httpd",
+								"/usr/bin/yum install -y php-common",
+								"/usr/bin/yum install -y php-cli",
+								"/usr/bin/yum install -y php",
+								"/usr/bin/yum install -y php-mysql",
+								"/usr/bin/yum install -y php-pdo",
+								"/usr/bin/yum install -y php-mbstring",
+								"/usr/bin/yum install -y php-pear.noarch",
+								"/usr/bin/yum install -y php-process",
+								"/usr/bin/yum install -y php-xml",
+								"/usr/bin/yum install -y mysql",
+								"/usr/bin/yum install -y mod_ssl",
+								"/usr/sbin/groupadd -g 522 ceadev",
+								"/usr/sbin/useradd -u 521 -g ceadev -c \"CEA Developer account\" ceadev",
+								"cd /home/ceadev",
+								"/bin/mkdir .ssh",
+								"echo 'export JAVA_HOME=/usr/lib/jvm/jre' >>/root/.profile", 
+                                "echo 'export HOME=/root' >>/root/.profile", 
+                                ". /root/.profile", 
+                                "/bin/mkdir /usr/java", 
+                                "/bin/ln /usr/lib/jvm/jre /usr/java/default", 
+                                "cd /tmp", 
+                                "/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/authorizeddev /home/ceadev/.ssh/authorized_keys",
+								"/bin/chown -R ceadev:ceadev .ssh",
+								"/bin/chmod 700 .ssh",
+								"/bin/chmod 600 .ssh/authorized_keys",
+								"/bin/mv  /etc/httpd/conf/httpd.conf /etc/httpd/conf/httpd.conf.orig",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/httpd.conf /etc/httpd/conf/httpd.conf",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/security.conf /etc/httpd/conf.d/security.conf",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/php.conf /etc/httpd/conf.d/php.conf",
+								"/bin/mv  /etc/php.ini /etc/php.ini.orig",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/php.ini /etc/php.ini",
+								"cd /tmp",
+								"/usr/bin/wget http://cup.custom-content.com/test_and_assess/cupservers.conf",
+								"/bin/mv cupservers.conf /etc/httpd/conf.d/",
+								"/usr/bin/wget http://cup.custom-content.com/test_and_assess/db_empty.sql",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/ElevateWebCronJobs.sh /tmp/ElevateWebCronJobs.sh",
+								"/bin/chmod -R 755 /tmp/ElevateWebCronJobs.sh",
+								"/tmp/ElevateWebCronJobs.sh",
+								"/bin/rm /tmp/ElevateWebCronJobs.sh",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/ProdSafesnapCronJob.sh /tmp/ProdSafesnapCronJob.sh",
+								"/bin/chmod -R 755 /tmp/ProdSafesnapCronJob.sh",
+								"/tmp/ProdSafesnapCronJob.sh",
+								"/bin/rm /tmp/ProdSafesnapCronJob.sh",
+								"cd /usr/local",
+								"mkdir uploads",
+								"chown apache:apache uploads",
+								"mkdir logs",
+								"/bin/touch logs/taew.log",
+								"/bin/touch logs/triggerlstyupdate_cup.log",
+								"chown -R apache:apache logs",
+		   						"/sbin/chkconfig httpd on",
+								"/sbin/service httpd start",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/cup.repo /etc/yum.repos.d/cup.repo",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/td.repo /etc/yum.repos.d/td.repo",
+								"/usr/bin/yum clean all",
+                                "/usr/bin/yum check-update",
+								"/usr/bin/yum install -y cup-education-elevate",
+                                "/usr/bin/yum install -y opsview-agent",
+								"/usr/bin/yum install -y java-1.7.0-openjdk.x86_64",
+								"/bin/mkdir -p /opt/aws/apitools", 
+                                "cd /opt/aws/apitools", 
+                                "wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip", 
+                                "/usr/bin/unzip ec2-api-tools.zip", 
+                                "/bin/rm ec2-api-tools.zip", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/safesnap.sh /usr/local/bin/safesnap.sh",
+								"/bin/chmod 755 /usr/local/bin/safesnap.sh",
+								"exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "AppServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    },
+					{
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    },
+					{
+                        "FromPort": "8140", 
+                        "IpProtocol": "tcp",
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "8140"
+                    },
+					{
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "443"
+                    },
+					{
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "22"
+                    },
+					{
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "80"
+                    },
+					{
+                        "FromPort": "5666", 
+                        "IpProtocol": "tcp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "5666"
+                    },
+					{
+                        "FromPort": "-1", 
+                        "IpProtocol": "icmp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "-1"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    },
+					{
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    },
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "web server"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Application Server Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Internet Gateway"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        "NATDevice": {
+            "DependsOn": "NATSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "NAT", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t1.micro", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "NATSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production NAT Device"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "NATIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable AWS VPC access to the NAT device", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "SubnetConfig", 
+                                "VPC", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production NAT Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "PrivateRoute": {
+            "DependsOn": "NATDevice", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PrivateSubnetApp": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateApp", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone A (Private App)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+		"PrivateSubnetAppB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateAppB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone B (Private App)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetDB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateDB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone A (Private DB)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+		"PrivateSubnetDBB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateDBB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone B (Private DB)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "InsertCluster"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Public routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PublicSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone A (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SubnetRouteTableAssociationPrivApp": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+		"PublicSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production Subnet Avail Zone B (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SubnetRouteTableAssociationPrivApp": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+		"SubnetRouteTableAssociationPrivAppB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetAppB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationPrivDB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetDB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+		"SubnetRouteTableAssociationPrivDB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetDBB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "SubnetRouteTableAssociationPubA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }
+			}, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+		"SubnetRouteTableAssociationPubB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetB"
+                }
+			}, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+		"VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Production VPC"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    },
+	"Outputs": {
+		"URL": {
+			"Description": "URL of the Load Balancer for the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "AppLoadBalancer", "DNSName" ] } ] ] }
+		},
+		"AdminSGroup" : {
+			"Description" : "Name of Admin server security group",
+			"Value" : { "Ref" : "AdminSecurityGroup"}
+		},
+		"PrivateSubDBA" : {
+			"Description" : "Name of DB subnet A",
+			"Value" : { "Ref" : "PrivateSubnetDB"}
+		},
+		"PrivateSubDBB" : {
+			"Description" : "Name of DB subnet B",
+			"Value" : { "Ref" : "PrivateSubnetDBB"}
+		},
+		"AppServerSGroup" : {
+			"Description" : "Name of Application server security group",
+			"Value" : { "Ref" : "AppServerSecurityGroup"}
+		},		
+		"EnvVPCId": {
+            "Description": "Environment VPC",
+            "Value": { "Ref": "VPC" }
+        }
+	}
+}

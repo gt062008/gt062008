@@ -1,0 +1,75 @@
+
+[
+{
+	"ParameterKey": "HostName",
+	"ParameterValue": "HubBastionServer"
+},
+{
+	"ParameterKey": "DomainName",
+	"ParameterValue": "infra.cambridge.org"
+},
+{
+	"ParameterKey": "EnvType",
+	"ParameterValue": "Hub"
+},
+{
+	"ParameterKey": "KeyName",
+	"ParameterValue": "cup-infrastructure"
+},
+{
+	"ParameterKey": "BastionInstanceType",
+	"ParameterValue": "t2.small"
+},
+{
+	"ParameterKey": "NumInstances",
+	"ParameterValue": "1"
+},
+{
+	"ParameterKey": "MinInstances",
+	"ParameterValue": "1"
+},
+{
+	"ParameterKey": "MaxInstances",
+	"ParameterValue": "1"
+},
+{
+	"ParameterKey": "MinHealthyInstances",
+	"ParameterValue": "1"
+},
+{
+	"ParameterKey": "MaxHealthyInstances",
+	"ParameterValue": "1"
+},
+{
+	"ParameterKey": "ExternalELB",
+	"ParameterValue": "hub-exter-ElasticL-1X3OHVSL7ZBW3"
+},
+{
+	"ParameterKey": "VPCId",
+	"ParameterValue": "vpc-3822415d"
+},
+{
+	"ParameterKey": "InstanceSubnets",
+	"ParameterValue": "subnet-a26f3cc7, subnet-9e5f24e9"
+},
+{
+	"ParameterKey": "DNSZoneId",
+	"ParameterValue": "/hostedzone/Z38OEPT9Z8EZDM"
+},
+{
+	"ParameterKey": "VpnGroup",
+	"ParameterValue": "sg-cd985aa9"
+},
+{
+	"ParameterKey": "PublicELBSecurityGroup",
+	"ParameterValue": "sg-98995bfc"
+},
+{
+	"ParameterKey": "NatSecurityGroup",
+	"ParameterValue": "sg-cc985aa8"
+},
+{
+	"ParameterKey": "BaseAmi",
+	"ParameterValue": "ami-1aa0e76d"
+}
+]

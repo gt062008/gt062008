@@ -1,0 +1,21 @@
+Environment=${1:Testing}
+if test -z "${Environment}"
+then
+   echo "Needs a parameter to define the environment name. Make it same as in cfg file for sanity"
+   exit 1
+fi
+
+aws cloudformation create-stack --stack-name AuthorHub-${Environment} --region eu-west-1 --profile cambridge --template-url https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/AuthorHub.template --parameters file:///root/svn/AWS/CloudFormation/trunk/AuthorHub/authorhub.cfg
+
+#### Build handy R53 DNS records externally to CF template
+##sleep 120 
+##R53=`aws elb describe-load-balancers --load-balancer-name SFTP-Load-Balancer-${Environment} --profile cambridge | awk ' NR == 1 {print $2}'`
+##while test -z "$R53"
+##do
+##   sleep 15
+##   R53=`aws elb describe-load-balancers --load-balancer-name SFTP-Load-Balancer-${Environment} --profile cambridge | awk ' NR == 1 {print $2}'` 
+##done
+##cp -f /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-AddR53.template /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-AddR53
+##sed -i "s/IPADDRESS/$R53/g" /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-AddR53
+##sed -i "s/sftp/sftp-$Environment/g" /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-AddR53
+##aws route53 change-resource-record-sets --hosted-zone-id ZWEBITPF5WUTE --change-batch file:///root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-AddR53 --profile cambridge

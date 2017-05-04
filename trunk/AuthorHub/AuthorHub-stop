@@ -1,0 +1,11 @@
+## Script to terminate a AuthorHub environment comprising AH App Server, AutoScaling ELB, SFTP Server and RDS MySQL DB
+
+## Start by removing previous Route 53 DNS record pointing to previous EC2 instance...
+R53=`aws elb describe-load-balancers --load-balancer-name SFTP-Server --profile cambridge | awk ' NR == 1 {print $2}'`
+cp -f /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthourHub-DeleteR53.template /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-DeleteR53
+sed -i "s/IPADDRESS/$R53/g" /root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-DeleteR53
+aws route53 change-resource-record-sets --hosted-zone-id ZWEBITPF5WUTE --change-batch file:///root/svn/AWS/CloudFormation/trunk/AuthorHub/AuthorHub-DeleteR53 --profile cambridge
+
+## Invoke CloudFormation script to terminate the EC2 instance
+aws cloudformation delete-stack --stack-name AuthorHub-Prototype --profile cambridge --region eu-west-1 
+

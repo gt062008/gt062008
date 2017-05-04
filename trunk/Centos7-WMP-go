@@ -1,0 +1,11 @@
+## Script to build WMP test environment as a single EC2 instance with "everything" on the one server
+
+## Invoke CloudFormation script to build out new EC2 instance
+aws cloudformation create-stack --stack-name CUP-Centos7-WMP-20161019 --profile cambridge --region eu-west-1 --template-body file:///root/svn/AWS/CloudFormation/trunk/Centos7-WMP.template --parameters file:///root/svn/AWS/CloudFormation/trunk/Centos7-WMP.cfg
+
+sleep 360 
+## Finally add new Route 53 DNS record pointing to new EC2 instance...
+IP_ADDRESS=`aws ec2 describe-instances --filter 'Name=tag:aws:cloudformation:logical-id,Values="AppServer"' --output text --profile cambridge --query 'Reservations[*].Instances[*].{Id:PrivateIpAddress}' | grep "^192.168" | head -1`
+cp -f /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-AddR53.template /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-AddR53
+sed -i "s/IPADDRESS/$IP_ADDRESS/g" /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-AddR53
+aws route53 change-resource-record-sets --hosted-zone-id ZWEBITPF5WUTE --change-batch file:///root/svn/AWS/CloudFormation/trunk//Centos7-WMP-AddR53 --profile cambridge

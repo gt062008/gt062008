@@ -1,0 +1,291 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "AWS CloudFormation Bastion Server ASG and DNS/Role",
+
+	"Parameters": {
+	
+		"HostName": {
+			"Description" : "Hub Bastion Instance",
+			"Type": "String",
+			"Default" : "Hub-Bastion"
+		},
+
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "infra.cambridge.org"
+		},
+	
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "hub",
+			"Type" : "String"
+		},
+		
+		"ExternalELB" : {
+			"Description" : "External ELB",
+			"Default" : "ExternalELB",
+			"Type" : "String"
+		},
+
+		"BastionInstanceType" : {
+			"Description" : "Bastion Host EC2 instance type",
+			"Type" : "String",
+			"Default" : "t2.small",
+			"AllowedValues" : [ "t2.micro","t2.small","t2.medium","t2.large"],
+			"ConstraintDescription" : "must be a valid EC2 instance type."
+		},
+
+		"NumInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"MinInstances" : {
+			"Description" : "Minimum instances in the ASG",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"MaxInstances" : {
+			"Description" : "Maximum instances in the ASG",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"MinHealthyInstances" : {
+			"Description" : "Minimum instances in the ASG",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"MaxHealthyInstances" : {
+			"Description" : "Maximum instances in the ASG",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Default" : "cup-infrastructure",
+			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default" : "vpc-273cd342",
+			"Type": "String"
+		},
+		
+		"InstanceSubnets" : {
+			"Default" : "subnet-aafafbec",
+			"Type" : "CommaDelimitedList",
+			"Description" : "List of deployment subnets"
+		},
+		
+		"DNSZoneId" : {
+			"Default" : "/hostedzone/Z3OTU08UN2UFD0",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String"
+		},
+
+		"VpnGroup" : {
+			"Default" : "sg-c7bc7ea2",
+			"Description" : "VPN server security group",
+			"Type" : "String"
+		},
+		
+		"PublicELBSecurityGroup" : {
+			"Default" : "sg-9de812f9",
+			"Description" : "Public ELB Security Group",
+			"Type" : "String"
+		},
+		
+		"NatSecurityGroup" : {
+			"Default" : "sg-3d837b59",
+			"Description" : "Public NAT Security Group",
+			"Type" : "String"
+		},
+
+		"BaseAmi" : {
+			"Default" : "ami-1aa0e76d",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		}
+	},
+
+	"Resources": {
+	
+    "OperatorRole": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+          "AssumeRolePolicyDocument": {
+            "Version" : "2012-10-17",
+            "Statement": [ {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [ "ec2.amazonaws.com" ]
+              },
+              "Action": [ "sts:AssumeRole" ]
+            } ]
+          },
+          "Path": "/app/application/"
+        }
+    },
+
+    "OperatorPolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "instanceOperator",
+        "PolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Action": [ "ec2:Describe*",
+            "ec2:StartInstances",
+            "ec2:StopInstances" ],
+            "Resource": "*"
+          }
+          ]
+        },
+        "Roles": [ {
+          "Ref": "OperatorRole"
+        } ]
+      }
+    },
+
+    "OperatorProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/app/application/",
+        "Roles": [ {
+          "Ref": "OperatorRole"
+        } ]
+      }
+    },
+
+    "BastionSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+          "Properties" : {
+            "GroupDescription" : "Bastion Security Group",
+            "VpcId" : { "Ref" : "VPCId" },
+            "SecurityGroupIngress" : [ 
+              { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.111.157.0/24" },
+              { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.111.159.0/24" },
+              { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "131.153.213.0/24" },
+              { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "185.20.164.28/32" },
+			  { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "PublicELBSecurityGroup" } } 
+            ],
+
+            "SecurityGroupEgress"  : [ 
+              { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "10.10.200.0/22" },
+			  { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "NatSecurityGroup" } }
+            ],
+        "Tags" : [ {
+        "Key" : "Name",
+          "Value" : "Bastion Security Group"
+        }, {
+          "Key" : "Hub_env",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "Hub_role",
+          "Value" : "Bastion Security Group"
+        }, {
+          "Key" : "Business",
+          "Value" : "Infra"
+        }, {
+          "Key" : "Platform",
+          "Value" : "INFRA"
+        }]
+
+          }
+
+       },
+
+		"WebServerGroup": {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Properties" : {
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+				"MinSize" : { "Ref" : "MinInstances"},
+				"MaxSize" : { "Ref" : "MaxInstances"},
+				"LoadBalancerNames" : [ { "Ref" : "ExternalELB" } ],
+				"DesiredCapacity" : { "Ref" : "NumInstances"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"VPCZoneIdentifier" : { "Ref" : "InstanceSubnets" },
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : "Hub Bastion",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "hub_env",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "hub_role",
+					"Value" : "Bastion Server",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "Infra",
+					"PropagateAtLaunch" : "true"
+				}]
+			},
+			"UpdatePolicy" : {
+				"AutoScalingScheduledAction" : {
+					"IgnoreUnmodifiedGroupSizeProperties" : "true"
+				},
+				"AutoScalingRollingUpdate" : {
+					"MinInstancesInService" : "1",
+					"MaxBatchSize" : "1",
+					"WaitOnResourceSignals" : "false",
+					"PauseTime" : "PT5M"
+				}
+			}
+		},
+
+		"LaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+			"AssociatePublicIpAddress" : "True",
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Ref" : "BaseAmi" },
+				"IamInstanceProfile" : { "Fn::GetAtt" : [ "OperatorProfile", "Arn" ] },
+				"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+					"IPADDR=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`",
+					"DOMAIN=.",  { "Ref" : "DomainName" }, "\n",
+					"HOSTNAME=", { "Ref" : "HostName" }, "-$INSTANCE\n",
+					"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+					"echo \"$IPADDR $HOSTNAME $HOSTNAME$DOMAIN\" >> /etc/hosts\n",
+					"hostnamectl set-hostname $HOSTNAME\n",
+					"mount /dev/xvda2 /mnt\n",
+					"dd if=/dev/zero of=/mnt/swapfile bs=1M count=1024\n",
+					"chown root:root /mnt/swapfile\n",
+					"chmod 600 /mnt/swapfile\n",
+					"mkswap /mnt/swapfile\n",
+					"swapon /mnt/swapfile\n"
+				]]}}, 
+				"SecurityGroups" : [ { "Ref" : "BastionSecurityGroup" } ],
+				"InstanceType" : { "Ref" : "BastionInstanceType" }
+			}
+		}
+	},
+
+	"Outputs": {
+		"URL": {
+			"Description": "URL of the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::Join" : [ "", [ { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"}, ":5050" ] ] } ] ] }
+		}
+	}
+}
+

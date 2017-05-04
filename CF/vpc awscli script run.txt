@@ -1,0 +1,13 @@
+VPC AWSCLi scripts
+Information
+These scripts have been designed with a configured AWSCLi profile. You will need to change this profile name in the local script.
+List VPCs in all Regions
+listvpc_allregions.sh
+This script lists all the VPC's created in an AWS account. It includes the default VPCs created in each Region.
+ENSURE TO CHANGE PROFILE VARIABLE!
+PROFILE="Profile_Name"
+List VPCs in all Regions (No Defaults)
+listvpc_allregions_nodefaults.sh
+This script lists all the VPC's created in an AWS account but excludes Default created VPCs by AWS.
+ENSURE TO CHANGE PROFILE VARIABLE!
+PROFILE="Profile_Name"

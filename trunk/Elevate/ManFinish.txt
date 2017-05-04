@@ -1,0 +1,48 @@
+1. Update route 53 DNS (in amazon cambridge account)	xxxxx.eu-west-1.elb.amazonaws.com
+2. Update my putty config with new admin server
+3. Login to new web sever and connect to new RDS mysql
+mysql -u root -p -h xxxxx.eu-west-1.rds.amazonaws.com
+	create user cup;
+	grant all on taew.* to 'cup'@'localhost' identified by 'cuptaew2015';
+	grant all on taew.* to 'cup'@'10.10.18.??' identified by 'cuptaew2015';   (remember to change ?? for the IP of the web application server(s))
+
+4.Import database
+mysql -u root -p -h xxxxx.eu-west-1.rds.amazonaws.com < /tmp/db_empty.sql
+
+5.change database in config file as root user undersection [cupservers : general]
+vi /var/www/config/config.ini swap existing for xxxxx.eu-west-1.rds.amazonaws.com
+
+6.restart apache
+apachectl graceful
+
+7.test
+curl -v http://localhost
+
+8.Post
+Clear out /tmp directory
+rm /tmp/db_empty.sql
+
+9.Setting up Peering for opsview monitoring
+In cup-infrastructure account add peering
+
+Infra to edu-aws
+Peered Account ID: 369408176762 
+Local VPC:vpc-d00df8b5  (Infra Production) 
+Peered VPC: vpc-xxxxxxx (10.10.18.128/25)
+
+In Route tables associate the new peering connection
+rtb-8443b0e1 (10-10b_public_rt) with pcx-xxxxxx
+
+then in edu-aws approve and the update the
+Production Private routing table with 10.10.248.0/22 pcx-xxxxx
+
+=========================================================================================
+Current UAT Bastion 54.72.61.126 (10.10.18.13)  Web 10.10.18.39 DB
+mysql -u root -p -h cm1vztyfrg7kodt.cpdxncpaui4j.eu-west-1.rds.amazonaws.com
+
+Current Staging Bastion 52.17.35.85 (10.10.18.78)  Web 10.10.18.102 DB
+mysql -u root -p -h cm1wjaytsw1zrph.cpdxncpaui4j.eu-west-1.rds.amazonaws.com
+
+Current Prod Bastion 52.17.244.26 (10.10.18.137)  Web 10.10.18.152 DB
+mysql -u root -p -h cm1csmh5rviyfnr.cpdxncpaui4j.eu-west-1.rds.amazonaws.com
+=========================================================================================

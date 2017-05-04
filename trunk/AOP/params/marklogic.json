@@ -1,0 +1,104 @@
+[
+  {
+    "ParameterKey": "HostName",
+    "ParameterValue": "MarkLogic"
+  },
+  {
+    "ParameterKey": "DomainName",
+    "ParameterValue": "aop.cambridge.org"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z3LZDTQKNP5I6F"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "aopdev-ops"
+  },
+  {
+    "ParameterKey": "EnvType",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "AdminUser",
+    "ParameterValue": "admin"
+  },
+  {
+    "ParameterKey": "AdminPass",
+    "ParameterValue": ""
+  },
+
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "m3.medium"
+  },
+
+  {
+    "ParameterKey": "Licensee",
+    "ParameterValue": "Cambridge University Press - Production"
+  },
+
+  {
+    "ParameterKey": "LicenseKey",
+    "ParameterValue": "3089-DCA7-6B3B-C9BC-789D-CC66-733C-991D-896F-43D9-1FC6-76D3-F126-8B30"
+  },
+  {
+    "ParameterKey": "NodesPerZone",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "VolumeSize",
+    "ParameterValue": "1000"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-b81faadd"
+  },
+  {
+    "ParameterKey": "{
+    "ParameterKey": "AvailabilityZone1",
+    "ParameterValue": "eu-west-1a"
+  },
+  {
+    "ParameterKey": "AvailabilityZone2",
+    "ParameterValue": "eu-west-1b"
+  },
+  {
+    "ParameterKey": "AvailabilityZone3",
+    "ParameterValue": "eu-west-1c"
+  },
+  {
+    "ParameterKey": "PrivateDataSubnets",
+    "ParameterValue": "subnet-b1f293d4, subnet-d3b138a4, subnet-37f3516e"
+  },
+  {
+    "ParameterKey": "PublicloadBalancerSecGroup",
+    "ParameterValue": "sg-c9520aac"
+  },
+  {
+    "ParameterKey": "{
+    "ParameterKey": "LoggingBucket",
+    "ParameterValue": "shared-prod-s3-elb-logs"
+  },
+  {
+    "ParameterKey": "PrivateAppIpBlocks",
+    "ParameterValue": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+  },
+  {
+    "ParameterKey": "MonitoringSecGroup",
+    "ParameterValue": "sg-d6431cb3"
+  },
+  {
+    "ParameterKey": "VPNSecGroup",
+    "ParameterValue": "ssg-c6431ca3"
+  },
+  {
+    "ParameterKey": "CISecGroup",
+    "ParameterValue": "sg-d0431cb5"
+  },
+  {
+    "ParameterKey": "BaseAmi",
+    "ParameterValue": "ami-65a13712"
+  }
+]
+ 

@@ -1,0 +1,653 @@
+{
+	"AWSTemplateFormatVersion":"2010-09-09",
+	"Description":"Create a cluster with three node or more nodes, multi az, load balanced, MarkLogic Cluster. MarkLogic-8.0-20140529.x86_64.rpm",
+	"Parameters":{
+	
+		"HostName": {
+			"Description" : "Base hostname for services",
+			"Type": "String",
+			"Default" : "marklogic"
+		},
+
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "aop.cambridge.org"
+		},
+	    "DNSZoneId" : {
+			"Default" : "/hostedzone/Z3LZDTQKNP5I6F",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String"
+		},
+		"KeyName":{
+			"Description":"Name of and existing EC2 KeyPair to enable SSH access to the instance",
+			"Type":"String",
+			"Default": "aopprod",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "prod",
+			"Type" : "String"
+		},
+		"AdminUser":{
+			"Description":"The MarkLogic Administrator Username",
+			"Type":"String",
+			"Default" : "admin"
+		},
+		"AdminPass":{
+			"Description":"The MarkLogic Administrator Password",
+			"Type":"String",
+			"NoEcho":"true"
+		},
+		"InstanceType":{
+			"Description":"Type of EC2 instance to launch",
+			"Type":"String",
+			"Default":"m3.medium",
+			"AllowedValues":["m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.medium","m3.large","m3.xlarge","m3.2xlarge"]
+		},
+		"Licensee":{
+			"Description":"The MarkLogic Licensee or 'none'",
+			"Type":"String",
+			"Default":"Cambridge University Press - Production"
+		},
+		"LicenseKey":{
+			"Description":"The MarkLogic License Key or 'none'",
+			"Type":"String",
+			"Default":"3089-DCA7-6B3B-C9BC-789D-CC66-733C-991D-896F-43D9-1FC6-76D3-F126-8B30"
+		},
+
+		"NodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"1",
+			"MaxValue":"20",
+			"Default":"1"
+		},
+		"VolumeSize":{
+			"Description":"The EBS Data volume size (GB) for all nodes",
+			"Type":"Number",
+			"MinValue":"10",
+			"MaxValue":"1000",
+			"Default":"1000"
+		},
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default": "vpc-b81faadd",
+			"Type": "String"
+		},
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a"
+			},
+		"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b"
+			},
+		"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c"
+			},
+		"PrivateDataSubnets" : {
+			"Type" : "CommaDelimitedList",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-b1f293d4, subnet-d3b138a4, subnet-37f3516e"
+		},
+		"PublicloadBalancerSecGroup" : {
+			"Description" : "External ELB security group",
+			"Type" : "String",
+			"Default" : "sg-c9520aac"
+		},
+		"LoggingBucket" : {
+			"Description" : "Name of the shared logging bucket",
+			"Type" : "String",
+			"Default" : "shared-prod-s3-elb-logs"
+		},
+		"PrivateAppIpBlocks" : {
+			"Description" : "Private Data1 CIDR",
+			"Type" : "CommaDelimitedList",
+			"Default" : "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+		},
+
+		"MonitoringSecGroup" : {
+			"Description" : "Monitoring security group",
+			"Type" : "String",
+			"Default" : "sg-d6431cb3"
+		},
+		"VPNSecGroup" : {
+			"Description" : "VPN Security Group",
+			"Type" : "String",
+			"Default" : "sg-c6431ca3"
+		},
+		"CISecGroup" : {
+			"Description" : "CI Builder Security Group",
+			"Type" : "String",
+			"Default" : "sg-d0431cb5"
+		},
+		"BaseAmi" : {
+			"Default" : "ami-65a13712",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		}
+	},
+	
+	"Mappings" : {
+    
+		"ElbAccount" : {
+			"eu-west-1" : { "Id" : "156460612806"},
+			"eu-central-1" : { "Id" : "054676820928"}
+		}
+	},
+	
+	
+	"Resources": {
+	
+		"SNSTopic" : {
+			"Type" : "AWS::SNS::Topic",
+			"Properties" : {
+				"DisplayName" : "MarkLogic",
+				"TopicName" : "MLTopic"
+			}
+		},
+	    "IAMRole": {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version" : "2012-10-17",
+					"Statement": [ {
+						"Effect": "Allow",
+						"Principal": {
+						"Service": [ "ec2.amazonaws.com" ]
+						},
+						"Action": [ "sts:AssumeRole" ]
+					} ]
+				},
+				"Path": "/"
+			}
+		},
+
+		"IAMPolicies": {
+			"Type": "AWS::IAM::Policy",
+			"Properties": {
+				"PolicyName": "marklogic",
+				"Roles" : [{ "Ref" : "IAMRole"}],
+				"PolicyDocument": {
+					"Version" : "2012-10-17",
+					"Statement": [ {
+						"Effect": "Allow",
+						"Action": "*",
+						"Resource": "*"
+					} ]
+				}
+			}
+		},
+
+		"InstanceProfile": {
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [ {
+					"Ref": "IAMRole"
+				} ]
+			}
+		},
+	
+		"Volume1":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone1"},
+				"VolumeType" : "gp2",
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ 
+					"Key":"Name", 
+					"Value" : { "Fn::Join" : ["", [ {"Ref" : "HostName"}, "-DataVolume-", "1" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+		
+		"Volume2":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone2"},
+				"VolumeType" : "gp2",
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ 
+					"Key":"Name", 
+					"Value" : { "Fn::Join" : ["", [ {"Ref" : "HostName"}, "-DataVolume-", "2" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+		
+		"Volume3":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone3"},
+				"VolumeType" : "gp2",
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ 
+					"Key":"Name",  
+					"Value" : { "Fn::Join" : ["", [ {"Ref" : "HostName"}, "-DataVolume-", "3" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+		
+		"SDBDomain":{
+			"Type":"AWS::SDB::Domain",
+			"Properties":
+			{
+				"Description":"Simple DB auto-created and used as cluster name"
+			}
+		},
+		
+		"ServerGroup1":{
+			"DependsOn" : ["SNSTopic"],
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"VPCZoneIdentifier" : [{ "Fn::Select" : [ "0", {"Ref" : "PrivateDataSubnets"} ] }],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig1"},
+				"MinSize":"1",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"LoadBalancerNames" : [{"Ref" : "ElasticLoadBalancer"}],
+				"NotificationConfiguration":{"TopicARN":{"Ref":"SNSTopic"},
+					"NotificationTypes":["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-", "1" ] ] },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP",
+					"PropagateAtLaunch" : "true"
+				}]
+			}
+		},
+		
+		"ServerGroup2":{
+			"DependsOn" : ["SNSTopic"],
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"VPCZoneIdentifier" : [{ "Fn::Select" : [ "1", {"Ref" : "PrivateDataSubnets"} ] }],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig2"},
+				"MinSize":"1",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"LoadBalancerNames" : [{"Ref" : "ElasticLoadBalancer"}],
+				"NotificationConfiguration":{"TopicARN":{"Ref":"SNSTopic"},
+				"NotificationTypes":["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-", "2" ] ] },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP",
+					"PropagateAtLaunch" : "true"
+				}]
+			}
+		},
+		
+		"ServerGroup3":{
+			"DependsOn" : ["SNSTopic"],
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"VPCZoneIdentifier" : [{ "Fn::Select" : [ "2", {"Ref" : "PrivateDataSubnets"} ] }],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig3"},
+				"MinSize":"1",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"LoadBalancerNames" : [{"Ref" : "ElasticLoadBalancer"}],
+				"NotificationConfiguration":{"TopicARN":{"Ref":"SNSTopic"},
+					"NotificationTypes":["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-", "3" ] ] },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" },
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro",
+					"PropagateAtLaunch" : "true"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP",
+					"PropagateAtLaunch" : "true"
+				}]
+			}
+		},
+		
+		"LaunchConfig1":{
+		"DependsOn" : ["Volume1", "InstanceSecurityGroup", "SNSTopic"],
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups" : [{"Ref" : "InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"IamInstanceProfile":{"Ref":"InstanceProfile"},
+				"ImageId":{ "Ref" : "BaseAmi" },
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"SDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"Volume1"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",						
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=1\n",						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"SNSTopic"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"LaunchConfig2":{
+			"DependsOn" : ["Volume2", "InstanceSecurityGroup", "SNSTopic"],
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups" : [{"Ref" : "InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"IamInstanceProfile":{"Ref":"InstanceProfile"},
+				"ImageId":{ "Ref" : "BaseAmi" },
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"SDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"Volume2"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",					
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=0\n",						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"SNSTopic"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"LaunchConfig3":{
+			"DependsOn" : ["Volume3", "InstanceSecurityGroup", "SNSTopic"],
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups" : [{"Ref" : "InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"IamInstanceProfile":{"Ref":"InstanceProfile"},
+				"ImageId":{ "Ref" : "BaseAmi" },
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"SDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"Volume3"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",						
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=0\n",						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"SNSTopic"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"ElasticLoadBalancer":{
+			"DependsOn": "PrivateELBSecurityGroup",
+			"Type":"AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"AppCookieStickinessPolicy":[{"CookieName":"SessionID","PolicyName":"MLSession" }],
+				"Subnets" : { "Ref" : "PrivateDataSubnets"},
+				"Scheme" : "internal",
+				"SecurityGroups" : [{ "Fn::GetAtt" : [ "PrivateELBSecurityGroup", "GroupId" ] }],
+				"ConnectionDrainingPolicy": {
+					"Enabled":"true",
+					"Timeout":"60"
+				},
+				"CrossZone":"true",
+				"Listeners":[
+					{
+						"LoadBalancerPort":"8000",
+						"InstancePort":"8000",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					
+					{
+						"LoadBalancerPort":"8001",
+						"InstancePort":"8001",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					
+					{
+						"LoadBalancerPort":"8002",
+						"InstancePort":"8002",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8003",
+						"InstancePort":"8003",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8004",
+						"InstancePort":"8004",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8005",
+						"InstancePort":"8005",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8006",
+						"InstancePort":"8006",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8007",
+						"InstancePort":"8007",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8008",
+						"InstancePort":"8008",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]}
+				],
+			
+				"HealthCheck":{
+					"Target":"HTTP:7997/",
+					"HealthyThreshold":"3",
+					"UnhealthyThreshold":"5",
+					"Interval":"10",
+					"Timeout":"5"
+				},
+				"AccessLoggingPolicy": {
+					"S3BucketName": {"Ref": "LoggingBucket"},
+					"S3BucketPrefix": { "Fn::Join" : [ "", [ { "Ref" : "EnvType" }, "/", { "Ref" : "HostName" } ] ] },
+					"Enabled": "true",
+					"EmitInterval" : "60"
+				},
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-MarkLogic-elb" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName"}
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]	
+			}
+		},
+		
+		"PrivateELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 8080",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "SourceSecurityGroupId" : {"Ref" : "PublicloadBalancerSecGroup"} },
+					{"IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8020", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{"IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8020", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{"IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8020", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{ "IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8020", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "8000", "ToPort" : "8003", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "CISecGroup"}}				
+				],
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-elb-secgroup" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+			
+		"InstanceSecurityGroup":{
+			"Type":"AWS::EC2::SecurityGroup",
+			"Properties":{
+				"GroupDescription":"Enable SSH access and HTTP access on the inbound port",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress":[
+					
+					{"IpProtocol":"tcp", "FromPort":"7997", "ToPort":"8020", "SourceSecurityGroupId" : { "Ref" : "PrivateELBSecurityGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"7997", "ToPort":"8020", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"7997", "ToPort":"8020", "SourceSecurityGroupId" : { "Ref" : "CISecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"7997", "ToPort":"8020", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "VPNSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "MonitoringSecGroup"}},
+					{"IpProtocol":"tcp", "FromPort":"22", "ToPort":"22", "SourceSecurityGroupId" : { "Ref" : "CISecGroup"}}						
+				],
+				"Tags" : [ {
+					"Key" : "Name",
+						"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-marklogic-secgroup" ] ] }
+					}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName"}
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+		"InstanceSecurityGroupIngress":{
+			"Type":"AWS::EC2::SecurityGroupIngress",
+			"Properties":{"IpProtocol":"tcp", "GroupId": {"Fn::GetAtt": ["InstanceSecurityGroup","GroupId"]}, "FromPort":"7997", "ToPort":"8020", "SourceSecurityGroupId" : {"Ref" : "InstanceSecurityGroup"}}
+		},
+		
+		"MLHostname" : {
+			"Type" : "AWS::Route53::RecordSet",
+			"Properties" : {
+				"HostedZoneId" : { "Ref" : "DNSZoneId" },
+				"Comment" : "CNAME for app service ELB",
+				"Name" :  { "Fn::Join" : [ "", [ { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+				"Type" : "CNAME",
+				"TTL" : "300",
+				"ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] } ]
+			}
+		}
+	},
+	
+	"Outputs":{
+		"URL":{
+			"Description":"The URL of the MarkLogic Cluster",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "ElasticLoadBalancer", "DNSName" ] }, ":8001" ] ] }
+		},
+		"SDBDomain" : {
+			"Value" : {"Ref" : "SDBDomain"}
+		},
+		"Volume3" : {
+			"Value" : {"Ref" : "Volume3"}
+		}
+	}
+}

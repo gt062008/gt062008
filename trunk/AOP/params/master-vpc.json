@@ -1,0 +1,170 @@
+[
+	{
+		"ParameterKey": "EnvType",
+		"ParameterValue": "dev"
+	},
+	{
+		"ParameterKey": "KeyName",
+		"ParameterValue": "aopdev-ops"
+	},
+	{
+		"ParameterKey": "DNSZoneId",
+		"ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+	},
+	{
+		"ParameterKey": "DomainName",
+		"ParameterValue": "aop.cambridge.org"
+	},
+	{
+		"ParameterKey": "LoggingBucket",
+		"ParameterValue": "elblogs-aop"
+	},
+	{
+		"ParameterKey": "CertificateARN",
+		"ParameterValue": "arn:aws:iam::291050698310:server-certificate/integration-cert"
+	},
+	{
+		"ParameterKey": "NATInstanceType",
+		"ParameterValue": "m1.small"
+	},
+	{
+		"ParameterKey": "PublicELBIpBlocks",
+		"ParameterValue": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"
+	},
+	{
+		"ParameterKey": "PrivateELBIpBlocks",
+		"ParameterValue": "10.10.100.64/26, 10.10.101.64/26, 10.10.102.64/26"
+	},
+	{
+		"ParameterKey": "PrivateAppIpBlocks",
+		"ParameterValue": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+	},
+	{
+		"ParameterKey": "PrivateDataIpBlocks",
+		"ParameterValue": "10.10.100.192/26, 10.10.101.192/26, 10.10.102.192/26"
+	},
+	{
+		"ParameterKey": "PrivateServicesIpBlocks",
+		"ParameterValue": "10.10.99.0/26, 10.10.99.64/26, 10.10.99.128/26"
+	}
+	{
+		"ParameterKey": "AvailabilityZone1",
+		"ParameterValue": "eu-west-1a"
+	},
+	{
+		"ParameterKey": "AvailabilityZone2",
+		"ParameterValue": "eu-west-1b"
+	},
+	{
+		"ParameterKey": "AvailabilityZone3",
+		"ParameterValue": "eu-west-1c"
+	},
+	{
+		"ParameterKey": "RDSDatabaseUser",
+		"ParameterValue": "aop-user"
+	},
+	{
+		"ParameterKey": "RDSDatabasePassword",
+		"ParameterValue": "green>plane>fixed"
+	},
+	{
+		"ParameterKey": "RDSDatabaseName",
+		"ParameterValue": "aop"
+	},
+	{
+		"ParameterKey": "RDSDBStorage",
+		"ParameterValue": "1000"
+	},
+	{
+		"ParameterKey": "RDSDatabaseInstanceClass",
+		"ParameterValue": "db.m3.medium"
+	},
+	{
+		"ParameterKey": "MarkLogicAdminUser",
+		"ParameterValue": "admin"
+	},
+	{
+		"ParameterKey": "MarkLogicAdminPass",
+		"ParameterValue": "apple[red[stable"
+	},
+	{
+		"ParameterKey": "MarkLogicInstanceType",
+		"ParameterValue": "m3.medium"
+	},
+	{
+		"ParameterKey": "Licensee",
+		"ParameterValue": "Cambridge University Press - Test"
+	},
+	{
+		"ParameterKey": "LicenseKey",
+		"ParameterValue": "308D-6C44-6023-F93E-68D6-C636-C1BE-8DAC-2664-3BF8-58C0-4622-FDCE-8A20"
+	},
+	{
+		"ParameterKey": "MarkLogicNodesPerZone",
+		"ParameterValue": "1"
+	},
+	{
+		"ParameterKey": "MarkLogicVolumeSize",
+		"ParameterValue": "1000"
+	},
+	{
+		"ParameterKey": "MarkLogicInstanceType",
+		"ParameterValue": "m3.medium"
+	},
+	{
+		"ParameterKey": "MarkLogicBaseAmi",
+		"ParameterValue": "ami-65a13712"
+	},
+	{
+		"ParameterKey": "AppBaseAmi",
+		"ParameterValue": "ami-6f7e1e18"
+	},
+	{
+		"ParameterKey": "InstanceType",
+		"ParameterValue": "t1.micro"
+	},
+	{
+		"ParameterKey": "AppInstanceType",
+		"ParameterValue": "t2.medium"
+	},
+	{
+		"ParameterKey": "MongoInstanceType",
+		"ParameterValue": "t2.medium"
+	},
+	{
+		"ParameterKey": "MongoVolumeSize",
+		"ParameterValue": "1000"
+	},
+	{
+		"ParameterKey": "MongoBaseAmi",
+		"ParameterValue": "ami-5f3f5d28"
+	},
+	{
+		"ParameterKey": "MongoNodesPerZone",
+		"ParameterValue": "1"
+	},
+	{
+		"ParameterKey": "AppNumInstances",
+		"ParameterValue": "3"
+	},
+	{
+		"ParameterKey": "ecsMinInstances",
+		"ParameterValue": "2"
+	},
+	{
+		"ParameterKey": "ecsMaxInstances",
+		"ParameterValue": "10"
+	},
+	{
+		"ParameterKey": "ecsMinInstances",
+		"ParameterValue": "2"
+	},
+	{
+		"ParameterKey": "idmMaxInstances",
+		"ParameterValue": "10"
+	},
+	{
+		"ParameterKey": "OpsQueueARN",
+		"ParameterValue": "arn:aws:sqs:eu-west-1:291050698310:platformcontentingest"
+	}
+]

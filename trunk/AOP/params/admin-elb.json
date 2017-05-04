@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "HostName",
+    "ParameterValue": "admin"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-e806b08d"
+  },
+  {
+    "ParameterKey": "PublicSubnets",
+    "ParameterValue": "subnet-f7355892, subnet-240c8653, subnet-b8be11e1"
+  },
+  {
+    "ParameterKey": "LoggingBucket",
+    "ParameterValue": "shared-prod-s3-elb-logs"
+  },
+  {
+    "ParameterKey": "CertificateARN",
+    "ParameterValue": "arn:aws:iam::942772678354:server-certificate/prod-testing"
+  }
+]

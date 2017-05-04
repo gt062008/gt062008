@@ -1,0 +1,24 @@
+if test "$#" -ne 1
+then
+  echo "Need to be told the environment name to use"
+  exit 1
+fi
+Environment=$1
+Stack=Ecommerce-${Environment}
+
+while true
+do
+   if aws cloudformation describe-stacks --profile cambridge --output text | grep "/${Stack}/" | grep CREATE_COMPLETE >/dev/null
+   then
+      break
+   else
+      sleep 10
+   fi
+done
+
+sleep 10
+aws cloudformation describe-stacks --stack-name $Stack --profile cambridge --query 'Stacks[*].{Output:Outputs[*]}' --output table | tee output.$$
+echo "Bastion IPA"
+aws ec2 describe-instances --profile cambridge --filter "Name=tag:Name,Values=\"Ecommerce Bastion Server $Environment\"" --query 'Reservations[*].Instances[*].{VPC:PublicIpAddress}'
+echo "Fermata IPA"
+aws ec2 describe-instances --profile cambridge --filter "Name=tag:Name,Values=\"Fermata $Environment\"" --query 'Reservations[*].Instances[*].{VPC:PublicIpAddress}'

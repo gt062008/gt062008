@@ -1,0 +1,1642 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Ecommerce DB instances.", 
+    "Mappings": {
+        "AWSAMI": {
+            "Centos": {
+                "AMI": "ami-d1422ea6"
+            }, 
+            "NAT": {
+                "AMI": "ami-30913f47"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            }, 
+            "MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            }, 
+            "SINGAPORE": {
+                "CIDR": "122.152.164.42/32"
+            }
+        }
+    }, 
+    "Outputs": {
+        "KKCentralAdminEC2SecurityGroup": {
+            "Description": "Central Admin Server EC2 Security Group", 
+            "Value": {
+                "Ref": "KKCentralAdminEC2SecurityGroup"
+            }
+        }, 
+        "KKCentralAdminELBSecurityGroup": {
+            "Description": "Central Admin Server ELB Security Group", 
+            "Value": {
+                "Ref": "KKCentralAdminELBSecurityGroup"
+            }
+        }, 
+        "KKCentralDeliveryEC2SecurityGroup": {
+            "Description": "Central Delivery Server EC2 Security Group", 
+            "Value": {
+                "Ref": "KKCentralDeliveryEC2SecurityGroup"
+            }
+        }, 
+        "KKCentralDeliveryELBSecurityGroup": {
+            "Description": "Central Delivery Server ELB Security Group", 
+            "Value": {
+                "Ref": "KKCentralDeliveryELBSecurityGroup"
+            }
+        }, 
+        "MongoDBIP": {
+            "Description": "MongoDB private IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "MongoDBServer", 
+                    "PrivateIp"
+                ]
+            }
+        }, 
+        "MySQLEndPoint": {
+            "Description": "RDS MySQL database Endpoint", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "MySQLDatabase", 
+                    "Endpoint.Address"
+                ]
+            }
+        }
+    }, 
+    "Parameters": {
+        "Account": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of AWS Account used", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of admin server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RDS MySQL root password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet A", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of DB subnet B", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Environment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of environment", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of IAM Role associated with S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of SSH keypair for EC2 instances", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Private Subnet A", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing Ecommerce VPC", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "WMPNatIp": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "CIDR identifying WMP NAT box", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "BuildDBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "BuildDB Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DB-Configuration"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "BuildDB SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "EcommMySQLSubnetGroup": {
+            "Properties": {
+                "DBSubnetGroupDescription": "Ecommerce RDS MySQL DB Subnet Group", 
+                "SubnetIds": [
+                    {
+                        "Ref": "DBSubnetA"
+                    }, 
+                    {
+                        "Ref": "DBSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "DBSubnetGrp"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce RDS Subnet Group"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBSubnetGroup"
+        }, 
+        "KKCentralAdminEC2SecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Central Admin Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminELBSecurityGroup"
+                        }, 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminELBSecurityGroup"
+                        }, 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminELBSecurityGroup"
+                        }, 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminELBSecurityGroup"
+                        }, 
+                        "ToPort": "8783"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce KK Central Admin Server SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "KKCentralAdminELBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Central Admin Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Admin Server ELB SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "KKCentralDeliveryEC2SecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Central Delivery Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryELBSecurityGroup"
+                        }, 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryELBSecurityGroup"
+                        }, 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryELBSecurityGroup"
+                        }, 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryELBSecurityGroup"
+                        }, 
+                        "ToPort": "8783"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Delivery Server SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "KKCentralDeliveryELBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Central Delivery Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Ref": "WMPNatIp"
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Ref": "WMPNatIp"
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Ref": "WMPNatIp"
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Ref": "WMPNatIp"
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Ref": "WMPNatIp"
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8789", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8789"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Delivery Server ELB SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "MongoDBSG": {
+            "Properties": {
+                "GroupDescription": "Mongo DB Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "27017", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryEC2SecurityGroup"
+                        }, 
+                        "ToPort": "27017"
+                    }, 
+                    {
+                        "FromPort": "27017", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminEC2SecurityGroup"
+                        }, 
+                        "ToPort": "27017"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "MongoDB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce MongoDB Database SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "MongoDBServer": {
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sdf", 
+                        "Ebs": {
+                            "VolumeSize": "20"
+                        }
+                    }
+                ], 
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "MongoDBSG"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "MongoDB"
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Database"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce MongoDB", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/bin/mkdir /data", 
+                                "/sbin/mkfs.ext4 /dev/xvdf", 
+                                "/bin/sleep 10", 
+                                "echo \"/dev/xvdf       /data    ext4    defaults        0 0\" >>/etc/fstab", 
+                                "/bin/mount /data", 
+                                "/bin/mkdir -p /data/mongo", 
+                                "cd /tmp", 
+                                "echo \"[mongodb]\" >/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"name=MongoDB Repository\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"baseurl=http://downloads-distro.mongodb.org/repo/redhat/os/x86_64/\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"gpgcheck=0\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"enabled=1\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum check-update", 
+                                "/usr/bin/yum install -y mongodb-org", 
+                                "IP=`hostname | sed '1,$s/-/./g' | sed '1,$s/ip.//'`", 
+                                "HOSTNAME=`hostname`", 
+                                "echo \"$IP $HOSTNAME\" >>/etc/hosts", 
+                                "cat /etc/mongod.conf | sed '1,$s/^#replSet=setname$/replSet=wmp/' | sed '1,$s/^dbpath.*$/dbpath=\\/data\\/mongo\\//' | sed '1,$s/^bind_ip=.*$/#bind_ip=127.0.0.1/' >/etc/mongodconfnew", 
+                                "/bin/mv /etc/mongod.conf /etc/mongod.conf.save", 
+                                "/bin/mv /etc/mongodconfnew /etc/mongod.conf", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/dump.tgz /data/dump.tgz", 
+                                "cd /data", 
+                                "/bin/tar zxpf /data/dump.tgz", 
+                                "/usr/bin/mongorestore --oplogReplay --dbpath /data/mongo /data/dump", 
+                                "/bin/chown -R mongod:mongod /data/mongo", 
+                                "/bin/chmod o-rwx -R /data/mongo", 
+                                "/sbin/service mongod start", 
+                                "/bin/sleep 120", 
+                                "/usr/bin/mongo <<EOT", 
+                                "use wmp;", 
+                                "rs.initiate();", 
+                                "exit;", 
+                                "EOT", 
+                                "/sbin/service opsview-agent start", 
+                                "/bin/rm -rf /data/dump /data/dump.tgz", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "MySQLDatabase": {
+            "Properties": {
+                "AllocatedStorage": "100", 
+                "DBInstanceClass": "db.t2.small", 
+                "DBName": "konakart", 
+                "DBSubnetGroupName": {
+                    "Ref": "EcommMySQLSubnetGroup"
+                }, 
+                "Engine": "MySQL", 
+                "EngineVersion": "5.6.21", 
+                "MasterUserPassword": {
+                    "Ref": "DBPassword"
+                }, 
+                "MasterUsername": "root", 
+                "PubliclyAccessible": "false", 
+                "StorageType": "gp2", 
+                "Tags": [
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce RDS MySQL database", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "RDS MySQL"
+                    }
+                ], 
+                "VPCSecurityGroups": [
+                    {
+                        "Ref": "MySQLSecurityGroup"
+                    }
+                ]
+            }, 
+            "Type": "AWS::RDS::DBInstance"
+        }, 
+        "MySQLSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "MySQL DB Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryEC2SecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }, 
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminEC2SecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }, 
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }, 
+                    {
+                        "FromPort": "3306", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "BuildDBSecurityGroup"
+                        }, 
+                        "ToPort": "3306"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "DB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "MySQL DB SG", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }
+    }
+}

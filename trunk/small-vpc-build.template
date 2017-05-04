@@ -1,0 +1,966 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "Template CloudFormation script for Small CUPS AWS environments.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            },
+			"MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            },
+            "NY-1": {
+                "CIDR": "38.122.225.74/32"
+            }, 
+            "NY-2": {
+                "CIDR": "65.202.160.242/32"
+            }, 
+            "WIRELESS": {
+                "CIDR": "192.153.213.50/32"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateApp": {
+                "CIDR": "10.10.30.64/26"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.30.128/26"
+            }, 
+            "PublicA": {
+                "CIDR": "10.10.30.0/26"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.30.0/24"
+            }
+        }
+    }, 
+    "Parameters": {
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "ADMINSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Admin Server Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AdminIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AdminServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AdminServer": {
+            "DependsOn": "ADMINSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "ADMINSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Admin Bastion Server"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "AppLBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Application Load Balancer Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AppLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "3", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "5"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "AppServer"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": "Application-Load-Balancer", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "AppServerSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PrivateSubnetApp"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce KK Central Server Load Balancer SG"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "AppServer": {
+            "DependsOn": "AppServerSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppServerSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Application Server"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "", 
+                            [
+                                "#!/bin/bash", 
+                                "yum -y update all"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "AppServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppLBSecurityGroup"
+                        }, 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AppLBSecurityGroup"
+                        }, 
+                        "ToPort": "443"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "InsertCluster"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Application Server Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        "NATDevice": {
+            "DependsOn": "NATSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "NAT", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t1.micro", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "NATSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "NAT Device"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "NATIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Enable AWS VPC access to the NAT device", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "SubnetConfig", 
+                                "VPC", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "NAT Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "PrivateRoute": {
+            "DependsOn": "NATDevice", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PrivateSubnetApp": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateApp", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone A (Private App)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetDB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateDB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone A (Private DB)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "InsertCluster"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Public routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PublicSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone A (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SubnetRouteTableAssociationPrivApp": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivDB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetDB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPubA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "InsertPlatform"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "InsertEnvironment"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "InsertBusiness"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "InsertOwner"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "InsertRole"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Standard VPC"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    }
+}

@@ -1,0 +1,20 @@
+#!/bin/bash
+## Top Level Shell script for CloudFormation build process for Ecommerce enviroments
+## Documentation exists in Confluence here : 
+## https://docs.cambridge.org/pages/viewpage.action?pageId=29852617#CloudFormationbuildprocessforEcommerceenvironments(revisedmethodwithNestedCloudFormationscripts)-ProcedureforexecutingtheCloudFormationscripts
+##
+## Run this script with one parameter which will be an identifer for the CloudFormation Stack - usually the environment name e.g. UAT - which will be appended on the to CF Stack name
+## Notice : We process a CF template stored in AWS S3 bucket not a 'local' CF template on your machine. This is because CF only allows small CF templates to be run from your 'local'
+## machine (ie where you aws cli is installed). The cup-wmp-ecomm-files S3 bucket is in the cup-infrastructure AWS account.
+## Use script "upload.sh" to update the templates in the AWS S3 bucket.
+## This S3 bucket is a standard repository fro CloudFormation templates.
+
+if test "$#" -ne 1
+then
+  echo "Need to be told the environment name to use"
+  exit 1
+fi
+Environment=$1
+Stack=Ecommerce-${Environment}
+aws cloudformation create-stack --stack-name $Stack --region eu-west-1 --template-url https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/Ecommerce.template --parameters file:///root/svn/AWS/CloudFormation/trunk/WMP-Ecommerce/cfg/Ecommerce-infra.cfg
+##aws cloudformation create-stack --stack-name $Stack --region eu-west-1 --profile cambridge --template-url https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/Ecommerce.template --parameters file:///root/svn/AWS/CloudFormation/trunk/WMP-Ecommerce/cfg/Ecommerce.cfg

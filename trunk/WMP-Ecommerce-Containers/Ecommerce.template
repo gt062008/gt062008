@@ -1,0 +1,485 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script for CUPS AWS Ecommerce project - Master script of nested CloudFormation scripts.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Centos": {
+                "AMI": "ami-306dc547"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            },
+			"MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            },
+            "NY-1": {
+                "CIDR": "38.122.225.74/32"
+            }, 
+            "NY-2": {
+                "CIDR": "65.202.160.242/32"
+            }, 
+            "SINGAPORE": {
+                "CIDR": "122.152.164.42/32"
+            }, 
+            "WIRELESS": {
+                "CIDR": "192.153.213.50/32"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateA": {
+                "CIDR": "10.10.25.64/27"
+            }, 
+            "PrivateB": {
+                "CIDR": "10.10.25.96/27"
+            }, 
+            "PrivateC": {
+                "CIDR": "10.10.25.128/27"
+            }, 
+            "PrivateD": {
+                "CIDR": "10.10.25.160/27"
+            }, 
+            "PublicA": {
+                "CIDR": "10.10.25.0/27"
+            }, 
+            "PublicB": {
+                "CIDR": "10.10.25.32/27"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.25.0/24"
+            }
+        }
+    }, 
+    "Outputs": {
+        "AdminELBDNSName": {
+            "Description": "DNS Name for Admin ELB", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.AdminELBDNSName"
+                ]
+            }
+        }, 
+        "DBKonakartPassword": {
+            "Description": "MySQL konakart user password", 
+            "Value": {
+                "Ref": "KKPassword"
+            }
+        }, 
+        "DBRootPassword": {
+            "Description": "MySQL Root user password", 
+            "Value": {
+                "Ref": "DBPassword"
+            }
+        }, 
+        "DBSubnetA": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.DBSubnetA"
+                ]
+            }
+        }, 
+        "DBSubnetB": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.DBSubnetB"
+                ]
+            }
+        }, 
+        "DeliveryELBDNSName": {
+            "Description": "DNS Name for Delivery ELB", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.DeliveryELBDNSName"
+                ]
+            }
+        }, 
+        "IPBastionExternal": {
+            "Description": "Konakart Bastion Server external IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.IPBastionServerExternal"
+                ]
+            }
+        }, 
+        "IPCentralA": {
+            "Description": "Konakart Delivery Server A internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.IPCentralA"
+                ]
+            }
+        }, 
+        "IPCentralB": {
+            "Description": "Konakart Delivery Server B internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.IPCentralB"
+                ]
+            }
+        }, 
+        "IPCentralC": {
+            "Description": "Konakart Admin Server C internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.IPCentralC"
+                ]
+            }
+        }, 
+        "IPFermataServerExternal": {
+            "Description": "Konakart Fermata Mail Server external IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.IPFermataServerExternal"
+                ]
+            }
+        }, 
+        "IPFermataServerInternal": {
+            "Description": "Konakart Fermata Mail Server internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppStack", 
+                    "Outputs.IPFermataServerInternal"
+                ]
+            }
+        }, 
+        "MongoDBIP": {
+            "Description": "MongoDB servrr inernal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "DBStack", 
+                    "Outputs.MongoDBIP"
+                ]
+            }
+        }, 
+        "MySQLEndPoint": {
+            "Description": "Endpoint to MySQL database", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "DBStack", 
+                    "Outputs.MySQLEndPoint"
+                ]
+            }
+        }, 
+        "PrivateSubnetA": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.PrivateSubnetA"
+                ]
+            }
+        }, 
+        "PrivatecSubnetB": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.PrivateSubnetB"
+                ]
+            }
+        }, 
+        "PublicSubnetA": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.PublicSubnetA"
+                ]
+            }
+        }, 
+        "PublicSubnetB": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.PublicSubnetB"
+                ]
+            }
+        }, 
+        "VPC": {
+            "Description": "VPC ID", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "VPCStack", 
+                    "Outputs.VPC"
+                ]
+            }
+        }
+    }, 
+    "Parameters": {
+        "CIDRRangeNumber": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "cuprepo", 
+            "Description": "Identifier for CIDR ranges to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "CustomEnvironment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "cuprepo", 
+            "Description": "Name of environment type to customise for", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "RDS MySQL root user password to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Environment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Environment description", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "ecommerce", 
+            "Description": "Name of existing IAM Role for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "RDS MySQL konakart user password to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "er-management-test", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Repos": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "cuprepo", 
+            "Description": "Name of RPM repo to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "WMPNatIp": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "External IP of WMP Nat device", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "AppStack": {
+            "Properties": {
+                "Parameters": {
+                    "AdminSecurityGroup": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.AdminSecurityGroup"
+                        ]
+                    }, 
+                    "CustomEnvironment": {
+                        "Ref": "CustomEnvironment"
+                    }, 
+                    "DBPassword": {
+                        "Ref": "DBPassword"
+                    }, 
+                    "Environment": {
+                        "Ref": "Environment"
+                    }, 
+                    "IamRole": {
+                        "Ref": "IamRole"
+                    }, 
+                    "KKCentralAdminEC2SecurityGroup": {
+                        "Fn::GetAtt": [
+                            "DBStack", 
+                            "Outputs.KKCentralAdminEC2SecurityGroup"
+                        ]
+                    }, 
+                    "KKCentralAdminELBSecurityGroup": {
+                        "Fn::GetAtt": [
+                            "DBStack", 
+                            "Outputs.KKCentralAdminELBSecurityGroup"
+                        ]
+                    }, 
+                    "KKCentralDeliveryEC2SecurityGroup": {
+                        "Fn::GetAtt": [
+                            "DBStack", 
+                            "Outputs.KKCentralDeliveryEC2SecurityGroup"
+                        ]
+                    }, 
+                    "KKCentralDeliveryELBSecurityGroup": {
+                        "Fn::GetAtt": [
+                            "DBStack", 
+                            "Outputs.KKCentralDeliveryELBSecurityGroup"
+                        ]
+                    }, 
+                    "KKPassword": {
+                        "Ref": "KKPassword"
+                    }, 
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    }, 
+                    "MySQLDBEndPoint": {
+                        "Fn::GetAtt": [
+                            "DBStack", 
+                            "Outputs.MySQLEndPoint"
+                        ]
+                    }, 
+                    "PrivateSubnetA": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.PrivateSubnetA"
+                        ]
+                    }, 
+                    "PrivateSubnetB": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.PrivateSubnetB"
+                        ]
+                    }, 
+                    "PublicSubnetA": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.PublicSubnetA"
+                        ]
+                    }, 
+                    "PublicSubnetB": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.PublicSubnetB"
+                        ]
+                    }, 
+                    "Repos": {
+                        "Ref": "Repos"
+                    }, 
+                    "VPC": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.VPC"
+                        ]
+                    }
+                }, 
+                "TemplateURL": "https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/EC2-Ecomm-Central.template"
+            }, 
+            "Type": "AWS::CloudFormation::Stack"
+        }, 
+        "DBStack": {
+            "Properties": {
+                "Parameters": {
+                    "AdminSecurityGroup": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.AdminSecurityGroup"
+                        ]
+                    }, 
+                    "DBPassword": {
+                        "Ref": "DBPassword"
+                    }, 
+                    "DBSubnetA": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.DBSubnetA"
+                        ]
+                    }, 
+                    "DBSubnetB": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.DBSubnetB"
+                        ]
+                    }, 
+                    "Environment": {
+                        "Ref": "Environment"
+                    }, 
+                    "IamRole": {
+                        "Ref": "IamRole"
+                    }, 
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    }, 
+                    "PrivateSubnetA": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.PrivateSubnetA"
+                        ]
+                    }, 
+                    "VPC": {
+                        "Fn::GetAtt": [
+                            "VPCStack", 
+                            "Outputs.VPC"
+                        ]
+                    }, 
+                    "WMPNatIp": {
+                        "Ref": "WMPNatIp"
+                    }
+                }, 
+                "TemplateURL": "https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/DB-Ecomm.template"
+            }, 
+            "Type": "AWS::CloudFormation::Stack"
+        }, 
+        "VPCStack": {
+            "Properties": {
+                "Parameters": {
+                    "CIDRRangeNumber": {
+                        "Ref": "CIDRRangeNumber"
+                    }, 
+                    "Environment": {
+                        "Ref": "Environment"
+                    }, 
+                    "IamRole": {
+                        "Ref": "IamRole"
+                    }, 
+                    "KeyName": {
+                        "Ref": "KeyName"
+                    }
+                }, 
+                "TemplateURL": "https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/VPC-Ecomm.template"
+            }, 
+            "Type": "AWS::CloudFormation::Stack"
+        }
+    }
+}

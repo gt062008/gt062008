@@ -1,0 +1,36 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Ben Prudence 17/10/2016 - Create a new basic VPC",
+
+  "Parameters" : {
+
+    "VPCIPBlock" : {
+      "Description" : "CIDR Block for the VPC, example (10.10.0.0/24). Max = /16",
+      "Type" : "String",
+      "Default" : "172.50.0.0/16",
+    },
+
+    "VPCName" : {
+      "Description" : "Name for the VPC, example (vpc-sharepoint-prod)",
+      "Type" : "String",
+      "Default" : "vpc-application-purpose",
+    },
+
+  },
+
+  "Resources" : {
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Ref" : "VPCIPBlock" },
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true",
+        "InstanceTenancy" : "default",
+          "Tags" : [ {"Key" : "Name", "Value" : { "Ref" : "VPCName"} } ]
+      }
+    },
+
+    }
+  }

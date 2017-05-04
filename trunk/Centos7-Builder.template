@@ -1,0 +1,238 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script for Centos 7 Gold AMI", 
+    "Mappings": {
+        "CUPSubnetConfig": {
+            "CAMFW": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINT154": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "CAMINT159": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "MANILLAFW1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLAFW2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLAFW3": {
+                "CIDR": "121.97.40.34/32"
+            }, 
+            "NYFW1": {
+                "CIDR": "38.105.193.36/32"
+            }, 
+            "NYFW2": {
+                "CIDR": "65.202.160.242/32"
+            }, 
+            "SINGAPOREFW": {
+                "CIDR": "122.152.164.42/32"
+            }
+        }, 
+        "VPCSubnetConfig": {
+            "PrivateApp": {
+                "CIDR": "10.10.19.16/28"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.19.32/28"
+            }, 
+            "PrivateDBB": {
+                "CIDR": "10.10.19.48/28"
+            }, 
+            "Public": {
+                "CIDR": "10.10.19.0/28"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.19.0/26"
+            }
+        }
+    }, 
+    "Outputs": {
+        "ServerExternalIP": {
+            "Description": "Gold Image Server External IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppServer", 
+                    "PublicIp"
+                ]
+            }
+        }, 
+        "ServerInternalIP": {
+            "Description": "Server internal IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppServer", 
+                    "PrivateIp"
+                ]
+            }
+        }
+    }, 
+    "Parameters": {
+        "AdminSG": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing Admin Server SG to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Ami": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of source AMI to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing IAM Role to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PublicSubnet": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing subnet to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "SSHKeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing SSH Keypair to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing VPC to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "AppIPAddress": {
+            "DependsOn": "AppServer", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AppSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the App server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSG"
+                        }, 
+                        "ToPort": "22"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AppServer": {
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Ref": "Ami"
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppSecurityGroup"
+                    }
+                ], 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }, 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "cd /tmp", 
+                                "/bin/sleep 15", 
+                                "/usr/sbin/groupadd -g 1002 ec2-user", 
+                                "/usr/sbin/useradd -g 1002 -c \"EC2 Default User\" -s /bin/bash ec2-user", 
+                                "/bin/cp -pR /home/centos/.ssh /home/ec2-user", 
+                                "/bin/chown -R ec2-user:ec2-user /home/ec2-user/.ssh", 
+                                "/bin/sed -ie 's,centos,ec2-user,g' /etc/sudoers.d/90-cloud-init-users", 
+                                "/usr/sbin/userdel centos", 
+                                "/usr/bin/yum install -y wget", 
+                                "/usr/bin/yum install -y unzip", 
+                                "/usr/bin/wget https://bootstrap.pypa.io/get-pip.py", 
+                                "/bin/python get-pip.py", 
+                                "/bin/pip install awscli", 
+                                "/bin/mkdir /root/.aws", 
+                                "echo \"[default]\" >>/root/.aws/config", 
+                                "echo \"region = eu-west-1\" >>/root/.aws/config", 
+                                "echo \"output = text\" >>/root/.aws/config",
+                                "/bin/mkdir -p /opt/aws/apitools", 
+                                "cd /opt/aws/apitools", 
+                                "/usr/bin/wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip", 
+                                "/usr/bin/unzip ec2-api-tools.zip", 
+                                "/bin/rm ec2-api-tools.zip", 
+                                "DIR=`ls -d ec2-api-tools-*`", 
+                                "/bin/ln -s $DIR ec2-api-tools-1.7.3.0", 
+                                "echo \"[cuprepo]\" >>/etc/yum.repos.d/cup.repo", 
+                                "echo \"name=CUP Custom Packages\" >>/etc/yum.repos.d/cup.repo", 
+                                "echo \"baseurl=http://cuprepo.aws.cambridge.org/\" >>/etc/yum.repos.d/cup.repo", 
+                                "echo \"enabled=1\" >>/etc/yum.repos.d/cup.repo", 
+                                "echo \"priority=1\" >>/etc/yum.repos.d/cup.repo", 
+                                "echo \"gpgcheck=0\" >>/etc/yum.repos.d/cup.repo", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum check-update", 
+                                "/usr/bin/yum install -y opsview-agent", 
+                                "/usr/bin/yum install -y cup-jre-1.7.0_76 --nogpgcheck", 
+                                "echo \"export JAVA_HOME=/usr/java/default\" >>/root/.bash_profile", 
+                                "echo \"export HOME=/root\" >>/root/.bash_profile", 
+                                "IP=`hostname | sed '1,$s/-/./g' | sed '1,$s/ip.//'`", 
+                                "HOSTNAME=`hostname", 
+                                "echo \"$IP $HOSTNAME\" >>/etc/hosts", 
+                                "echo \"ec2-user ALL = NOPASSWD: ALL\" >/etc/sudoers.d/cloud-init", 
+                                "echo 'Defaults:ec2-user !requiretty' >/etc/sudoers.d/ec2-user", 
+                                "echo \"ec2-user  ALL=(ALL)  NOPASSWD: ALL\" >>/etc/sudoers.d/ec2-user", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }
+    }
+}

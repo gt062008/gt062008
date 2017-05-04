@@ -1,0 +1,5 @@
+## Script to terminate a WMP test environment as a single EC2 instance with "everything" on the one server
+
+###### Invoke CloudFormation script to terminate the EC2 instance
+aws cloudformation delete-stack --stack-name CUP-Centos7-WMP-BuildTest2 --profile cambridge --region eu-west-1 
+####

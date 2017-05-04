@@ -1,0 +1,147 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "Create s3 Resources for ecs",
+
+  "Parameters": {
+    "HostName": {
+      "Description" : "Base hostname for services",
+      "Type": "String",
+      "Default" : "ecs.platform"
+    },
+
+    "DomainName": {
+      "Description" : "Base domain name",
+      "Type": "String",
+      "Default" : "aop.cambridge.org"
+    },
+  
+    "EnvType" : {
+      "Description" : "Enviroment Type",
+      "Default" : "prod",
+      "Type" : "String"
+    },
+
+    "BucketPrefix" : {
+      "Description" : "Bucket name prefix",
+      "Default" : "store",
+      "Type" : "String"
+    },
+
+    "DNSZoneId" : {
+      "Default" : "/hostedzone/Z24DM7IXHGSU76",
+      "Description" : "ZoneId of our Route53 DNS",
+      "Type" : "String"
+    },
+
+    "OpsQueueARN" : {
+      "Description" : "Ops SQS Queue for notifications ARN",
+      "Default" : "",
+      "Type" : "String"
+    }
+  },
+
+  "Resources": {
+
+    "ecsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy" : "Retain",
+      "Properties" :{
+        "AccessControl": "Private",
+        "BucketName" :  { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-", { "Ref" : "EnvType" }, "-", { "Ref" : "BucketPrefix" }, "-s3-bucket" ] ] }
+        }, {
+          "Key" : "aop_env",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "aop_role",
+          "Value" : { "Ref" : "HostName" }
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro"
+        }, {
+          "Key" : "Platform",
+          "Value" : "AOP"
+        }]
+      }
+    },
+    
+    "ecsBucketCname" : {
+      "Type" : "AWS::Route53::RecordSet",
+      "Properties" : {
+         "HostedZoneId" : { "Ref" : "DNSZoneId" },
+         "Comment" : "CNAME for app serivce ELB",
+         "Name" :  { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+         "Type" : "CNAME",
+         "TTL" : "300",
+         "ResourceRecords" : [  { "Fn::GetAtt" : [ "ecsBucket", "DomainName" ] }  ]
+      }
+    },
+
+    "ecsQueue" : {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "DelaySeconds": 15,
+        "MessageRetentionPeriod": 345600,
+        "VisibilityTimeout": 43200
+      }
+    },
+
+    "QueueAlarmTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "Subscription": [{
+          "Endpoint": { "Ref": "OpsQueueARN" },
+          "Protocol": "sqs"
+        }]
+      }
+    },
+
+    "QueueDepthAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Alarm if queue depth grows beyond 10 messages",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [{
+          "Name": "QueueName",
+          "Value" : { "Fn::GetAtt" : ["ecsQueue", "QueueName"] }
+        }],
+        "Statistic": "Sum",
+        "Period": "300",
+        "EvaluationPeriods": "1",
+        "Threshold": "10",
+        "ComparisonOperator": "GreaterThanThreshold",
+        "AlarmActions": [{
+          "Ref": "QueueAlarmTopic"
+        }],
+        "InsufficientDataActions": [{
+          "Ref": "QueueAlarmTopic"
+        }]
+      }
+    }
+  },
+  
+  "Outputs": {
+    "ecsBucketURL" : {
+      "Description": "URL of s3 bucket",
+      "Value": { "Fn::GetAtt" : [ "ecsBucket", "WebsiteURL" ] }
+    },
+
+    "ecsBucketName" : {
+      "Description": "Name of s3 bucket",
+      "Value": { "Fn::Join" : [ "", [ { "Ref" : "BucketPrefix" }, ".", { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] }
+    },
+    "ecsQueueName" : {
+      "Description": "URL of SQS queue",
+      "Value": { "Ref" : "ecsQueue" }
+    },
+
+    "ecsQueueArn" : {
+      "Description": "ARN of SQS queue",
+      "Value": { "Fn::GetAtt" : [ "ecsQueue", "Arn" ] }
+    }
+  }
+}

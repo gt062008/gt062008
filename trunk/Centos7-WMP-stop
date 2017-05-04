@@ -1,0 +1,11 @@
+## Script to terminate a WMP test environment as a single EC2 instance with "everything" on the one server
+
+## Start by removing previous Route 53 DNS record pointing to previous EC2 instance...
+IP_ADDRESS=`aws ec2 describe-instances --filter 'Name=tag:aws:cloudformation:logical-id,Values="AppServer"' --output text --profile cambridge --query 'Reservations[*].Instances[*].{Id:PrivateIpAddress}' | head -1`
+cp -f /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-DeleteR53.template /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-DeleteR53
+sed -i "s/IPADDRESS/$IP_ADDRESS/g" /root/svn/AWS/CloudFormation/trunk/Centos7-WMP-DeleteR53
+aws route53 change-resource-record-sets --hosted-zone-id ZWEBITPF5WUTE --change-batch file:///root/svn/AWS/CloudFormation/trunk//Centos7-WMP-DeleteR53 --profile cambridge
+
+## Invoke CloudFormation script to terminate the EC2 instance
+aws cloudformation delete-stack --stack-name CUP-Centos7-WMP-20161019 --profile cambridge --region eu-west-1 
+

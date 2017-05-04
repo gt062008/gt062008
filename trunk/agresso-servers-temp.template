@@ -1,0 +1,63 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "Template CloudFormation script for Agresso environments - builds MS Windows servers.", 
+    "Mappings": {
+        "AWSAMI": {
+            "Windows2012R2": {
+                "AMI": "ami-d3dee9b5"
+            }, 
+            "NAT": {
+                "AMI": "ami-076d5d61"
+            }
+        }, 
+        "EJSubnetConfig": {
+            "ACADEMY": {
+                "CIDR": "10.64.0.0/16"
+            }, 
+            "HANGER89": {
+                "CIDR": "10.66.0.0/16"
+            }
+        }, 
+        "AWSSubnetConfig": {
+            "PrivateA": {
+                "CIDR": "10.10.21.0/25"
+            }, 
+            "PrivateB": {
+                "CIDR": "10.10.21.128/25"
+            }, 
+            "PrivateC": {
+                "CIDR": "10.10.22.0/25"
+            }, 
+            "PrivateD": {
+                "CIDR": "10.10.22.128/25"
+            }, 
+            "PublicA": {
+                "CIDR": "10.10.20.0/25"
+            }, 
+            "PublicB": {
+                "CIDR": "10.10.20.128/25"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.20.0/22"
+            }
+        }
+    }, 
+    "Parameters": {
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+        "PrivateSubnetAppA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "CIDR of existing private subnet where instances should be deployed", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }
+}

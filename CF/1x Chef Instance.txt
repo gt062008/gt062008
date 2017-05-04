@@ -1,0 +1,695 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+	"Description"              : "EasyJet - Global Common Environment - 1x Chef Instance (Monitoring / Chef)",
+	"Parameters"               : {
+	
+		"pAZ1"						: {
+			"Type" : "String",
+			"Description" : "Name of Availability Zone 1",
+			"Default"     : "eu-west-1a",
+			"AllowedValues" : [
+				"eu-west-1a",
+				"eu-west-1b",
+				"eu-west-1c",
+				"eu-central-1a",
+				"eu-central-1b",
+				"ap-southeast-2a",
+				"ap-southeast-2b",
+				"sa-east-1a",
+				"sa-east-1b",
+				"us-east-1b",
+				"us-east-1c",
+				"us-east-1d",
+				"ap-northeast-1a",
+				"ap-northeast-1c",
+				"us-west-2a",
+				"us-west-2b",
+				"us-west-2c",
+				"us-west-1b",
+				"us-west-1c",
+				"ap-southeast-1a",
+				"ap-southeast-1b"
+			]
+		},
+		
+		"pKeyPairName"				: {
+			"Type" : "String",
+			"Description" : "Name of key pair to use for EC2 instances",
+			"MinLength"   : "1",
+			"MaxLength"   : "30",
+			"Default"     : "kyEjProdCmn"
+		},
+		"pAmi"						: {
+			"Type" : "String",
+			"Description" : "EC2 AMI ID. Use HVM AMI.",
+			"Default"     : "ami-14913f63",
+			"MinLength"   : "12",
+			"MaxLength"   : "12",
+			"AllowedPattern" : "^ami-[0-9a-fA-F]{8}",
+			"ConstraintDescription" : "must be a valid AMI ID ami-xxxxxxxx"
+		},
+        
+		"psnCmn1WebA"				: {
+			"Type" : "String",
+			"Description" : "Id of snCmn1WebA",
+			"Default"     : "subnet-",
+			"AllowedPattern" : "subnet-[a-z0-9]*",
+			"ConstraintDescription" : "Must start subnet-"
+		},
+		        
+		"psgCmn101Str"				: {
+			"Type" : "String",
+			"Description" : "Id of Common Bastion security group",
+			"Default"     : "sg-",
+			"AllowedPattern" : "sg-[a-z0-9]*",
+			"ConstraintDescription" : "Must start sg-"
+		},
+		"psgCmn101Chf"				: {
+			"Type" : "String",
+			"Description" : "Id of the Chef security group",
+			"Default"     : "sg-",
+			"AllowedPattern" : "sg-[a-z0-9]*",
+			"ConstraintDescription" : "Must start sg-"
+		},
+		
+		"pNameChf01a"				: {
+			"Type" : "String",
+			"Description" : "TAG Name",
+			"Default"		: "D1EN101CHF001"
+		},
+		"pInstanceProfileChf"		: {
+			"Type" : "String",
+			"Description" : "Instance profile"
+		},
+		"pInstanceRoleChf"			: {
+			"Type" : "String",
+			"Description" : "Instance Role"   
+		},
+		"pInstanceTypeChf"			: {
+			"Description" : "EC2 instance type. Use HVM-based AMI for t2",
+			"Type"        : "String",
+			"Default"		: "m3.medium",
+			"AllowedValues" : [
+				"m3.medium"				
+			],
+			"ConstraintDescription" : "must be a valid EC2 instance type."
+		},        
+		"pRootVolSizeChf"			: {
+			"Description" : "Size in GB of allocated Root Volume Size.",
+			"Type"        : "String",
+			"Default"     : "50"
+		},
+		
+		"pSupportBucket"			: {
+			"Type" : "String",
+			"Description" : "S3 bucket containing files",
+			"Default"     : "easyjet-production-support"
+		},
+		"pChefClientFilename"		: {
+			"Type" : "String",
+			"Description" : "Filename of Chef-Client (Linux) - Located in S3 Support Bucket",
+			"Default"     : "chef-12.0.3-1.x86_64.rpm"
+		},
+		"pChefServerFilename"		: {
+            "Type" : "String",
+            "Description" : "Filename of Chef-Client (Linux) - Located in S3 Support Bucket",
+            "Default"     : "chef-server-core-12.0.4-1.el5.x86_64.rpm"
+        },
+
+        "pBaseDomainName"			: {
+            "Type" : "String",
+            "Description" : "Base Domain Name",
+            "Default"     : "europe.easyjet.local"
+        },
+		
+        "pFixedIp01a"				: {
+            "Type" : "String",
+            "Description" : "Fixed IP Address of Chef 01a",
+            "Default"		: "172.23.2.20"          
+        },
+						
+        "pChefServerUrl"			: {
+            "Type" : "String",
+            "Description" : "URL of Chef Server",
+            "Default"     : "https://D1EN101CHF001.europe.easyjet.local:443/organizations/easyjet-globalcommon-production"
+        },
+		
+		"pApplication"				: {
+			"Type"		  : "String",
+			"Description" : "TAG Application",
+			"MinLength"   : "3",
+			"MaxLength"   : "7",
+			"Default"     : "Common"
+		},
+		"pApprovingManager"			: {
+			"Type"		  : "String",
+			"Description" : "TAG Approving Manager",
+			"Default"	  : "James Easton"
+		},
+		"pCostCentre"				: {
+			"Type"		  : "String",
+			"Description" : "TAG Cost Centre",
+			"Default"	  : "88600"
+		},
+		"pOwner"					: {
+			"Type"        : "String",
+			"Description" : "TAG Owner",
+			"Default"	  : "James Easton"          
+		},
+		"pProjectName"				: {
+			"Type"		  : "String",
+			"Description" : "TAG Project",
+			"Default"	  : "Utility"
+		},
+		"pServerRole"				: {
+			"Type"		  : "String",
+			"Description" : "TAG Server Role",
+			"Default"	  : "Chef"
+		},
+		"pStartCron"				: {
+			"Type"		  : "String",
+			"Description" : "TAG StartCron",
+			"Default" : ""
+		},
+		"pStopCron"					: {
+			"Type"		  : "String",
+			"Description" : "TAG StartCron",
+			"Default" : ""
+		},
+		"pStream"					: {
+			"Type" : "String",
+			"Description" : "TAG Stream",
+			"MinLength"   : "1",
+			"MaxLength"   : "6",
+			"Default"     : "cmn101"
+		}
+    },   
+    "Resources" : {
+
+        "iChf01a"					: {
+            "Type" : "AWS::EC2::Instance",			            
+            "Properties" : {
+				"ImageId" : {
+					"Ref" : "pAmi"
+				},
+				"SecurityGroupIds" : [
+					{
+						"Ref" : "psgCmn101Str"
+					},
+					{
+						"Ref" : "psgCmn101Chf"
+					}
+				],
+				"KeyName"                  : {
+					"Ref" : "pKeyPairName"
+				},
+				"InstanceType"             : {
+					"Ref" : "pInstanceTypeChf"
+				},
+				"IamInstanceProfile"       : {
+					"Ref" : "pInstanceProfileChf"
+				},
+				"AvailabilityZone" : {
+					"Ref" : "pAZ1"
+				},
+				"BlockDeviceMappings" : [
+					{
+						"DeviceName" : "/dev/xvdf",
+						"Ebs"        : {
+							"VolumeType" : "gp2",
+							"VolumeSize" : {
+								"Ref" : "pRootVolSizeChf"
+							},
+							"DeleteOnTermination" : "true"
+						}
+					}
+				],				
+				"SubnetId"     : {
+					"Ref" : "psnCmn1WebA"
+				},
+				"PrivateIpAddress"     : {
+					"Ref" : "pFixedIp01a"
+				},
+				"SourceDestCheck" : "true",				
+				"Tags" : [                   
+					{
+						"Key" : "Name",
+						"Value"             : {
+							"Ref" : "pNameChf01a"
+						}
+					},
+					{
+						"Key"  : "Application",
+						"Value"  : {
+							"Ref" : "pApplication"
+						}
+					},
+					{
+						"Key"  : "ApprovingManager",
+						"Value"  : {
+							"Ref" : "pApprovingManager"
+						}
+					},
+					{
+						"Key"  : "CostCentre",
+						"Value"  : {
+							"Ref" : "pCostCentre"
+						}
+					},
+					{
+						"Key" : "Owner",
+						"Value" : {
+							"Ref" : "pOwner"
+						}
+					},
+					{
+						"Key" : "ProjectName",
+						"Value" : {
+							"Ref" : "pProjectName"
+						}
+					},
+					{
+						"Key" : "StartCron",
+						"Value" : {
+							"Ref" : "pStartCron"
+						}
+					},
+					{
+						"Key" : "StopCron",
+						"Value" : {
+							"Ref" : "pStopCron"
+						}
+					},
+					{
+						"Key" : "ServerRole",
+						"Value" : {
+							"Ref": "pServerRole"
+						}
+					},
+					{
+						"Key"  : "Stream",
+						"Value"  : {
+							"Ref" : "pStream"
+						}
+					}
+				],								
+				"UserData" : {
+					"Fn::Base64" : {
+						"Fn::Join" : [
+							"",
+							[
+								"#!/bin/bash \n",
+								"function error_exit\n",
+								"{\n",
+								" /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+								{
+									"Ref" : "iChf01aWaitHandle"
+								},
+								"'\n",
+								"   exit 1\n",
+								"}\n",
+								"# Install the CloudFormation tools and call init\n",
+								"# Note do not remove this bit\n",
+								"easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+								"# Call the CloudFormation init\n",
+								"/opt/aws/bin/cfn-init --region ",
+								{
+									"Ref" : "AWS::Region"
+								},
+								" -s ",
+								{
+									"Ref" : "AWS::StackName"
+								},
+								" -r iChf01a ",
+								" || error_exit 'Failed to run cfn-init'\n",
+								"# Run the RHELfixup script\n",
+								"/usr/local/ec2/RHELfixup.sh",								
+								"\n",
+								"# Update the hostname\n",
+								"/usr/local/ec2/ec2-host-local.sh",
+								" ",								
+								{
+									"Ref": "pBaseDomainName"
+								},
+								" ",
+								{
+									"Ref" : "pNameChf01a"
+								},			
+								"\n# Install AWS CLI\n",															
+								"unzip /usr/local/ec2/awscli/awscli-bundle.zip -d /tmp\n",
+								"/tmp/awscli-bundle/install -i /usr/local/aws -b aws\n",
+								"\n",
+								"echo Setting Metrics Crontab\n",								
+								"echo /usr/local/ec2/monitoring/setup-metrics.sh >> /tmp/setup-metrics.log",
+								"\n",
+								"# Configure Chef Server\n",
+								"echo 'Please run appropiate commands to install and setup the Chef Server'\n",																
+								"\n",
+								"# End of CloudFormation init\n",
+								"# Signal success\n",
+								"/opt/aws/bin/cfn-signal -e $? -r 'iChf01a Server configuration' '",
+								{
+									"Ref" : "iChf01aWaitHandle"
+								},
+								"'\n"
+							]
+						]
+					}
+				}
+			},
+			"Metadata" : {
+                "AWS::CloudFormation::Init" : {
+                    "configSets" : {
+                        "default" : [                        							
+                            "hostSetup",
+							"config",
+							"install-software"								
+                        ]
+                    },			                                            
+                    "hostSetup" : {
+                        "files" : {	
+							"/usr/local/ec2/RHELfixup.sh": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/os/linux/RHELfixup.sh"																						
+										]
+									]
+								},
+								"mode"	 : "000700",
+                                "owner"  : "root",
+                                "group"  : "root",                                
+								"authentication":"S3AccessCreds"
+							},													
+							"/usr/local/ec2/ec2-host-local.sh": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/os/linux/ec2-host-local.sh"																						
+										]
+									]											
+								},
+								"mode"	 : "000700",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/usr/local/ec2/monitoring/CloudWatchClient.pm": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/monitoring/cloudwatch/linux/CloudWatchClient.pm"																						
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"	
+							},
+							"/usr/local/ec2/monitoring/mon-get-instance-stats.pl": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/monitoring/cloudwatch/linux/mon-get-instance-stats.pl"																						
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/usr/local/ec2/monitoring/mon-put-instance-data.pl": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/monitoring/cloudwatch/linux/mon-put-instance-data.pl"																						
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"	
+							},
+							"/usr/local/ec2/monitoring/setup-metrics.sh": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/scripts/monitoring/cloudwatch/linux/setup-metrics.sh"																						
+										]
+									]											
+								},
+								"mode"   : "000700",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"	
+							},
+							"/usr/local/ec2/awscli/awscli-bundle.zip": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/installers/awscli/linux/awscli-bundle.zip"																														
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/usr/local/ec2/chef/chef-client.rpm": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/installers/chef-client/linux/",
+										{
+											"Ref": "pChefClientFilename"
+										}																					
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/usr/local/ec2/chef/chef-server.rpm": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/installers/chef-server/linux/",
+										{
+											"Ref": "pChefServerFilename"
+										}																					
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/usr/local/ec2/pip/get-pip.py": {
+								"source": {
+									"Fn::Join": ["",
+									[
+										"https://",
+										{
+											"Ref": "pSupportBucket"
+										},												
+										".s3-eu-west-1.amazonaws.com/installers/pip/get-pip.py"
+										
+										]
+									]											
+								},
+								"mode"   : "000644",
+                                "owner"  : "root",
+                                "group"  : "root",
+                                "authentication":"S3AccessCreds"
+							},
+							"/etc/chef/client.rb" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [										
+											"log_level           :info\n",
+											"log_location        STDOUT\n",
+											"chef_server_url '",
+											{
+												"Ref" : "pChefServerUrl"
+											},
+											"'\n",
+											"validation_client_name 'easyjet-globalcommon-validator'\n",
+											"validation_key         '/etc/chef/validator.pem'\n",
+											"client_key             '/etc/chef/client.pem'\n"
+                                        ]
+                                    ]
+                                }
+                            },
+							"/root/.chef/knife.rb" : {
+                                "content" : {
+                                    "Fn::Join" : [
+                                        "",
+                                        [
+											"log_level               :info\n",
+											"log_location            STDOUT\n",
+											"node_name               '<replace with username>'\n",
+											"client_key              '/root/.chef/<replace with username>.pem'\n",
+											"validation_client_name  'easyjet-globalcommon-validator'\n",
+											"validation_key          '/etc/chef/validator.pem'\n",
+											"chef_server_url '",
+											{
+                                                "Ref" : "pChefServerUrl"
+                                            },
+											"'\n",
+											"syntax_check_cache_path  '/root/.chef/syntax_check_cache'\n",
+											"cookbook_path [ '/organizations/easyjet-globalcommon/cookbooks' ]\n"
+                                        ]
+                                    ]
+                                }
+                            }																							
+						}		
+					},
+					"install-software" : {
+						"commands" : {														
+							"1-install-pip" : {
+								"command" : {
+									"Fn::Join" : [
+										"",
+										[
+											"python /usr/local/ec2/pip/get-pip.py"
+
+										]
+									]
+								}
+							},
+							"2-install-chef-server" : {
+								"command" : {
+									"Fn::Join" : [
+										"\n",
+										[
+											"rpm -Uvh /usr/local/ec2/chef/chef-server.rpm"																				
+										]
+									]
+								}
+							},
+							"3-install-chef-client" : {
+								"command" : {
+									"Fn::Join" : [
+										"\n",
+										[
+											"rpm -Uvh /usr/local/ec2/chef/chef-client.rpm"																				
+										]
+									]
+								}
+							}
+						}
+					},
+					"config" : {
+						"packages" : {
+							"yum" : {
+								"nagios" : [ ],
+								"nagios-plugins-all" : [ ],
+								"gcc" : [ ]
+							}
+						},
+						"services" : {
+								"sysvinit" : {
+									"nagios" : {
+										"enabled" : "true",
+										"ensureRunning" : "true"
+									},
+									"httpd" : {
+										"enabled" : "true",
+										"ensureRunning" : "true"
+									}
+								}
+						}																										
+					}		 	 
+				},
+				"AWS::CloudFormation::Authentication": {
+					"S3AccessCreds": {
+						"type": "S3",
+						"roleName": {
+							"Ref": "pInstanceRoleChf"
+						}
+					}
+				}
+			}
+		},
+		"iChf01aWaitCondition"		: {
+			"Type" : "AWS::CloudFormation::WaitCondition",           
+			"DependsOn" : "iChf01a",
+			"Properties" : {
+				"Handle" : {
+					"Ref" : "iChf01aWaitHandle"
+				},
+				"Timeout" : "1800"
+			}
+		},
+		"iChf01aWaitHandle"			: {
+			"Type" : "AWS::CloudFormation::WaitConditionHandle"
+		}
+			    			
+	},
+	"Outputs"                  : {
+		"chfInstanceIds" : {
+			"Value" : {
+				"Fn::Join" : [
+					" ",
+					[                        
+						{
+							"Fn::Join" : [
+								": ",
+								[
+									"iChf01a",
+									{
+										"Ref" : "iChf01a"
+									}
+								]
+							]
+						}
+					]
+				]
+			}
+		}
+	}
+}fg++++++

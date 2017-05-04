@@ -1,0 +1,7 @@
+ldapsearch  -h 172.25.133.71 -xLLL -D "cn=cde,dc=easyjet" -b "dc=com" -w $PGPASSWORD -s base contextcsn |grep -i contextCSN
+
+ldapsearch -x -b "cn=cde,cn=easyjet,cn=com" -D "cn=ipa" -w  YOURPASSWORD objectClass=nsDS5ReplicationAgreement -LL
+
+ldapsearch -D 'dc=cde,dc=easyjet,dc=com' -W -v -b
+
+ipa topologysegment-add domain ipa.cde.easyjet.com-to-ipa02.cde.easyjot.com \ --leftnode=ipa.cde.easyjet.com --rightnode=ipa02.cde.easyjet.com

@@ -1,0 +1,301 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script creates additional Production application server", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }
+    }, 
+    "Parameters": {
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing IAM Role for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "ceareadS3"
+        },
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "cea-live-key"
+        },
+		"LBSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing Load Balancer Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "sg-b9cd9fdc"
+        },
+		"AppServerSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing App Server Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "sg-8dcd9fe8"
+        },
+		"PublicSubnet": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of PublicSubnet", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "subnet-61a52b16"
+        },
+		"PrivateSubnetApp": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of PrivateSubnetApp", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+			"Default" : "subnet-63a52b14"
+        }
+    }, 
+    "Resources": {
+        "AppLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "AppServer"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    },
+					{
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "443", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ],
+						"SSLCertificateId" : "arn:aws:iam::369408176762:server-certificate/wildcardcambridge.org2048Aug2016",
+                        "Protocol": "HTTPS"
+                    }
+                ], 
+                "LoadBalancerName": "CEAssess-Testing-Prod-LB", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "LBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnet"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Testing Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Testing Production CEAssess Server LB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "AppServer": {
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium",
+				"IamInstanceProfile": {
+                   "Ref": "IamRole"
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppServerSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "CEAssess"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "UK Education"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Production"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Ian Callow"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "web server"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Testing Production Application Server"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/bin/yum -y update",
+								"/usr/bin/yum install -y httpd",
+								"/usr/bin/yum install -y php-common",
+								"/usr/bin/yum install -y php-cli",
+								"/usr/bin/yum install -y php",
+								"/usr/bin/yum install -y php-mysql",
+								"/usr/bin/yum install -y php-pdo",
+								"/usr/bin/yum install -y php-mbstring",
+								"/usr/bin/yum install -y php-pear.noarch",
+								"/usr/bin/yum install -y php-process",
+								"/usr/bin/yum install -y php-xml",
+								"/usr/bin/yum install -y mysql",
+								"/usr/bin/yum install -y mod_ssl",
+								"/usr/sbin/groupadd -g 522 ceadev",
+								"/usr/sbin/useradd -u 521 -g ceadev -c \"CEA Developer account\" ceadev",
+								"cd /home/ceadev",
+								"/bin/mkdir .ssh",
+								"echo 'export JAVA_HOME=/usr/lib/jvm/jre' >>/root/.profile", 
+                                "echo 'export HOME=/root' >>/root/.profile", 
+                                ". /root/.profile", 
+                                "/bin/mkdir /usr/java", 
+                                "/bin/ln /usr/lib/jvm/jre /usr/java/default", 
+                                "cd /tmp", 
+                                "/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/authorizeddev /home/ceadev/.ssh/authorized_keys",
+								"/bin/chown -R ceadev:ceadev .ssh",
+								"/bin/chmod 700 .ssh",
+								"/bin/chmod 600 .ssh/authorized_keys",
+								"/bin/mv  /etc/httpd/conf/httpd.conf /etc/httpd/conf/httpd.conf.orig",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/httpd.conf /etc/httpd/conf/httpd.conf",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/security.conf /etc/httpd/conf.d/security.conf",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/php.conf /etc/httpd/conf.d/php.conf",
+								"/bin/mv  /etc/php.ini /etc/php.ini.orig",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/php.ini /etc/php.ini",
+								"cd /tmp",
+								"/usr/bin/wget http://cup.custom-content.com/test_and_assess/cupservers.conf",
+								"/bin/mv cupservers.conf /etc/httpd/conf.d/",
+								"/usr/bin/wget http://cup.custom-content.com/test_and_assess/db_empty.sql",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/ElevateWebCronJobs.sh /tmp/ElevateWebCronJobs.sh",
+								"/bin/chmod -R 755 /tmp/ElevateWebCronJobs.sh",
+								"/tmp/ElevateWebCronJobs.sh",
+								"/bin/rm /tmp/ElevateWebCronJobs.sh",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/ProductionSafesnapCronJob.sh /tmp/ProductionSafesnapCronJob.sh",
+								"/bin/chmod -R 755 /tmp/ProductionSafesnapCronJob.sh",
+								"/tmp/ProductionSafesnapCronJob.sh",
+								"/bin/rm /tmp/ProductionSafesnapCronJob.sh",
+								"cd /usr/local",
+								"mkdir uploads",
+								"chown apache:apache uploads",
+								"mkdir logs",
+								"/bin/touch logs/taew.log",
+								"/bin/touch logs/triggerlstyupdate_cup.log",
+								"chown -R apache:apache logs",
+		   						"/sbin/chkconfig httpd on",
+								"/sbin/service httpd start",
+								"echo 'ceadev        ALL=(ALL)       NOPASSWD: ALL' >/etc/sudoers.d/ceadev",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/cup.repo /etc/yum.repos.d/cup.repo",
+								"/usr/bin/aws s3 cp s3://cup-cea-files/td.repo /etc/yum.repos.d/td.repo",
+								"/usr/bin/yum clean all",
+                                "/usr/bin/yum check-update",
+								"/usr/bin/yum install -y cup-education-elevate",
+                                "/usr/bin/yum install -y opsview-agent",
+								"/usr/bin/yum install -y java-1.7.0-openjdk.x86_64",
+								"/bin/mkdir -p /opt/aws/apitools", 
+                                "cd /opt/aws/apitools", 
+                                "wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip", 
+                                "/usr/bin/unzip ec2-api-tools.zip", 
+                                "/bin/rm ec2-api-tools.zip", 
+                                "/usr/bin/aws s3 cp s3://cup-cea-files/safesnap.sh /usr/local/bin/safesnap.sh",
+								"/bin/chmod 755 /usr/local/bin/safesnap.sh",
+								"exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        } 
+    },
+	"Outputs": {
+		"URL": {
+			"Description": "URL of the Testing LB for the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "AppLoadBalancer", "DNSName" ] } ] ] }
+		}
+	}
+}

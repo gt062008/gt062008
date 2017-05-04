@@ -1,0 +1,50 @@
+[
+  {
+    "ParameterKey": "HostName",
+    "ParameterValue": "adminmongo"
+  },
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-e806b08d"
+  },
+  {
+    "ParameterKey": "PrivateDataSubnets",
+    "ParameterValue": "subnet-ea35588f, subnet-220c8655, subnet-bbbe11e2"
+  },
+  {
+    "ParameterKey": "AppCIDR1",
+    "ParameterValue": "10.10.103.128/26"
+  },
+  {
+    "ParameterKey": "AppCIDR2",
+    "ParameterValue": "10.10.104.128/26"
+  },
+  {
+    "ParameterKey": "AppCIDR3",
+    "ParameterValue": "10.10.105.128/26"
+  },
+  {
+    "ParameterKey": "MonitoringSecGroup",
+    "ParameterValue": "sg-2b54704e"
+  },
+
+  {
+    "ParameterKey": "VPNSecGroup",
+    "ParameterValue": "sg-5a54703f"
+  },
+
+  {
+    "ParameterKey": "CISecGroup",
+    "ParameterValue": "sg-2854704d"
+  },
+
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "aopprod"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z3LZDTQKNP5I6F"
+  }
+]
+ 

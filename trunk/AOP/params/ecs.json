@@ -1,0 +1,82 @@
+[
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-273cd342"
+  },
+  {
+    "ParameterKey": "InstanceSubnets",
+    "ParameterValue": "subnet-adfafbeb, subnet-3f40e85a, subnet-64289213"
+  },
+  {
+    "ParameterKey": "NumInstances",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "MinInstances",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "MaxInstances",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "MonitoringGroup",
+    "ParameterValue": "sg-e653ff83"
+  },
+  {
+    "ParameterKey": "VpnGroup",
+    "ParameterValue": "sg-c7bc7ea2"
+  },
+  {
+    "ParameterKey": "CiGroup",
+    "ParameterValue": "sg-9027e9f5"
+  },
+  {
+    "ParameterKey": "PublicloadBalancerSecGroup",
+    "ParameterValue": "sg-09fada6c"
+  },
+
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "aopdev-ops"
+  },
+
+  {
+    "ParameterKey": "BaseAmi",
+    "ParameterValue": "ami-6f7e1e18"
+  },
+  {
+    "ParameterKey": "LoggingBucket",
+    "ParameterValue": "elblogs-aop"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+  },
+
+  {
+    "ParameterKey": "ecsBucketName",
+    "ParameterValue": "store.ecs.staging.aop.cambridge.org"
+  },
+
+  {
+    "ParameterKey": "ecsBucketURL",
+    "ParameterValue": "store.ecs.staging.aop.cambridge.org.s3.amazonaws.com"
+  },
+
+  {
+    "ParameterKey": "ecsQueueArn",
+    "ParameterValue": "arn:aws:sqs:eu-west-1:291050698310:aop-staging-ecs-resources-ecsQueue-1HBY64DS7RU56"
+  },
+
+  {
+    "ParameterKey": "ecsQueueURL",
+    "ParameterValue": "https://sqs.eu-west-1.amazonaws.com/291050698310/aop-staging-ecs-resources-ecsQueue-1HBY64DS7RU56"
+  },
+
+  {
+    "ParameterKey": "OpsQueueARN",
+    "ParameterValue": "arn:aws:sqs:eu-west-1:291050698310:staging-ops-events"
+  }
+
+]

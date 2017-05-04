@@ -1,0 +1,1323 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Ecommerce EC2 instances.", 
+    "Mappings": {
+        "AWSAMI": {
+            "Centos": {
+                "AMI": "ami-d1422ea6"
+            }, 
+            "NAT": {
+                "AMI": "ami-30913f47"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            }, 
+            "MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            }, 
+            "SINGAPORE": {
+                "CIDR": "122.152.164.42/32"
+            }
+        }
+    }, 
+    "Outputs": {
+        "AdminELBDNSName": {
+            "Description": "Central Admin Server DNS Name", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKCentralAdminLoadBalancer", 
+                    "DNSName"
+                ]
+            }
+        }, 
+        "DeliveryELBDNSName": {
+            "Description": "Central Delivery Server DNS Name", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKCentralDeliveryLoadBalancer", 
+                    "DNSName"
+                ]
+            }
+        }, 
+        "IPCentralA": {
+            "Description": "Konakart Delivery Server A internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKCentralServerA", 
+                    "PrivateIp"
+                ]
+            }
+        }, 
+        "IPCentralB": {
+            "Description": "Konakart Delivery Server B internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKCentralServerB", 
+                    "PrivateIp"
+                ]
+            }
+        }, 
+        "IPCentralC": {
+            "Description": "Konakart Admin Server C internal IP address", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKCentralServerC", 
+                    "PrivateIp"
+                ]
+            }
+        }, 
+        "IPFermataServerExternal": {
+            "Description": "Konakart Fermata Mail Server External IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKFermataServer", 
+                    "PublicIp"
+                ]
+            }
+        }, 
+        "IPFermataServerInternal": {
+            "Description": "Konakart Fermata Mail Server Internal IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "KKFermataServer", 
+                    "PrivateIp"
+                ]
+            }
+        }
+    }, 
+    "Parameters": {
+        "Account": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of AWS Account used", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Bastion Server SG", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "CUPLicense": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "CUPS Konakart Licence string", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "ContainerRepo": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "The Docker Container Repo", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "CustomEnvironment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Type of environment to customise for", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "The Konakart DB instance name", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "The required AWS RDS MySQL Admin user password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "DBUsername": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "The Konakart DB Admin user name", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Environment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of selected environment", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of IAM Role to associate with EC2 instance for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKCentralAdminEC2SecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Central Server Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKCentralAdminELBSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Central Admin Server ELB Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKCentralDeliveryEC2SecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Central Server Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKCentralDeliveryELBSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of Central Delivery Server ELB Security Group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KKPassword": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "The required AWS RDS MySQL konakart user password", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "MySQLDBEndPoint": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of MySQL DB Endpoint", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of private subnet a", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of private subnet b", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PublicSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of public subnet a", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PublicSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of public subnet b", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Repos": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of RPM repos to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Id of the VPC to build SG in to", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "FermataIPAddress": {
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "KKFermataServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "KKCentralAdminLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "8", 
+                    "Target": "HTTP:8780/", 
+                    "Timeout": "5", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "KKCentralServerC"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "8780", 
+                        "LoadBalancerPort": "8780", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8783", 
+                        "LoadBalancerPort": "8783", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8789", 
+                        "LoadBalancerPort": "8789", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8790", 
+                        "LoadBalancerPort": "8790", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": {
+                    "Fn::Join": [
+                        "-", 
+                        [
+                            "Central-Admin-ELB", 
+                            {
+                                "Ref": "Environment"
+                            }
+                        ]
+                    ]
+                }, 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "KKCentralAdminELBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }, 
+                    {
+                        "Ref": "PublicSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Admin Server ELB", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "KKCentralDeliveryLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "8", 
+                    "Target": "HTTP:8780/", 
+                    "Timeout": "5", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "KKCentralServerA"
+                    }, 
+                    {
+                        "Ref": "KKCentralServerB"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "8780", 
+                        "LoadBalancerPort": "8780", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8783", 
+                        "LoadBalancerPort": "8783", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8789", 
+                        "LoadBalancerPort": "8789", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8790", 
+                        "LoadBalancerPort": "8790", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": {
+                    "Fn::Join": [
+                        "-", 
+                        [
+                            "Central-Delivery-ELB", 
+                            {
+                                "Ref": "Environment"
+                            }
+                        ]
+                    ]
+                }, 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "KKCentralDeliveryELBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }, 
+                    {
+                        "Ref": "PublicSubnetB"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Delivery Server ELB", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "KKCentralServerA": {
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1", 
+                        "Ebs": {
+                            "VolumeSize": "20"
+                        }
+                    }
+                ], 
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKCentralDeliveryEC2SecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Central A", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "export HOME=/root", 
+                                "cd /tmp", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/wait_for_mysql.sh /tmp/wait_for_mysql.sh", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/create_konakart_user.sql /tmp/create_konakart_user.sql", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/bootconfig.sh /tmp/bootconfig.sh", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/konakart_license.sql /tmp/konakart_license.sql", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/konakart_vanilla.sql /tmp/konakart_vanilla.sql", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/docker.repo /etc/yum.repos.d/docker.repo", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum -y update", 
+                                "/usr/bin/pip install --upgrade awscli",
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/bin/cat /tmp/create_konakart_user.sql | /bin/sed '1,$s/password/", 
+                                            {
+                                                "Ref": "KKPassword"
+                                            }, 
+                                            "/' >/tmp/create_konakart_user2.sql"
+                                        ]
+                                    ]
+                                }, 
+                                "/bin/chmod u+x /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                {
+                                    "Fn::Join": [
+                                        " ", 
+                                        [
+                                            "/tmp/wait_for_mysql.sh", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/mysql -u root -p", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " -h ", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " </tmp/create_konakart_user2.sql"
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "sed -ie 's,CUPLIC,'", 
+                                            {
+                                                "Ref": "CUPLicense"
+                                            }, 
+                                            "',g' /tmp/konakart_license.sql"
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "mysql -u ", 
+                                            {
+                                                "Ref": "DBUsername"
+                                            }, 
+                                            " -p", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " -h ", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " ", 
+                                            {
+                                                "Ref": "DBName"
+                                            }, 
+                                            " < /tmp/konakart_vanilla.sql"
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "mysql -u ", 
+                                            {
+                                                "Ref": "DBUsername"
+                                            }, 
+                                            " -p", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " -h ", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " ", 
+                                            {
+                                                "Ref": "DBName"
+                                            }, 
+                                            " < /tmp/konakart_license.sql"
+                                        ]
+                                    ]
+                                }, 
+                                "/usr/bin/yum -y install docker-engine", 
+                                "/sbin/chkconfig docker on", 
+                                "/sbin/chkconfig --level 234 docker on", 
+                                "/sbin/service docker start", 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker pull ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker run -dit -e MYSQL_SERVER=", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " -e MYSQL_DB=", 
+                                            {
+                                                "Ref": "DBName"
+                                            }, 
+                                            " -e APP_USER=", 
+                                            {
+                                                "Ref": "DBUsername"
+                                            }, 
+                                            " -e APP_PASS=", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " --name konakart -h konakart -p 8780:8780 -p 42222:22 ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                "/usr/bin/docker exec -d konakart /tmp/kk_configure.sh", 
+                                "/usr/bin/docker exec -d konakart /tmp/bootconfig.sh", 
+                                "/bin/rm /tmp/*.sql /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "KKCentralServerB": {
+            "DependsOn": "KKCentralServerA", 
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1", 
+                        "Ebs": {
+                            "VolumeSize": "20"
+                        }
+                    }
+                ], 
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKCentralDeliveryEC2SecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetB"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Central B", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "export HOME=/root", 
+                                "cd /tmp", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/bootconfig.sh /tmp/bootconfig.sh", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/docker.repo /etc/yum.repos.d/docker.repo", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum -y update", 
+                                "/usr/bin/pip install --upgrade awscli",
+                                "/bin/chmod u+x /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                "/usr/bin/yum -y install docker-engine", 
+                                "/sbin/chkconfig docker on", 
+                                "/sbin/chkconfig --level 234 docker on", 
+                                "/sbin/service docker start", 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker pull ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker run -dit -e MYSQL_SERVER=", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " -e MYSQL_DB=", 
+                                            {
+                                                "Ref": "DBName"
+                                            }, 
+                                            " -e APP_USER=", 
+                                            {
+                                                "Ref": "DBUsername"
+                                            }, 
+                                            " -e APP_PASS=", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " --name konakart -h konakart -p 8780:8780 -p 42222:22 ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                "/usr/bin/docker exec -d konakart /tmp/kk_configure.sh", 
+                                "/usr/bin/docker exec -d konakart /tmp/bootconfig.sh", 
+                                "/bin/rm /tmp/*.sql /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "KKCentralServerC": {
+            "DependsOn": "KKCentralServerA", 
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1", 
+                        "Ebs": {
+                            "VolumeSize": "20"
+                        }
+                    }
+                ], 
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKCentralAdminEC2SecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetB"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Central C", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "export HOME=/root", 
+                                "cd /tmp", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/bootconfig.sh /tmp/bootconfig.sh", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/cloudformation/ecommerce-scripts/docker.repo /etc/yum.repos.d/docker.repo", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum -y update", 
+                                "/usr/bin/pip install --upgrade awscli",
+                                "/bin/chmod u+x /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                "/usr/bin/yum -y install docker-engine", 
+                                "/sbin/chkconfig docker on", 
+                                "/sbin/chkconfig --level 234 docker on", 
+                                "/sbin/service docker start", 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker pull ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                {
+                                    "Fn::Join": [
+                                        "", 
+                                        [
+                                            "/usr/bin/docker run -dit -e MYSQL_SERVER=", 
+                                            {
+                                                "Ref": "MySQLDBEndPoint"
+                                            }, 
+                                            " -e MYSQL_DB=", 
+                                            {
+                                                "Ref": "DBName"
+                                            }, 
+                                            " -e APP_USER=", 
+                                            {
+                                                "Ref": "DBUsername"
+                                            }, 
+                                            " -e APP_PASS=", 
+                                            {
+                                                "Ref": "DBPassword"
+                                            }, 
+                                            " --name konakart -h konakart -p 8780:8780 -p 42222:22 ", 
+                                            {
+                                                "Ref": "ContainerRepo"
+                                            }
+                                        ]
+                                    ]
+                                }, 
+                                "/usr/bin/docker exec -d konakart /tmp/kk_configure.sh", 
+                                "/usr/bin/docker exec -d konakart /tmp/bootconfig.sh", 
+                                "/bin/rm /tmp/*.sql /tmp/wait_for_mysql.sh /tmp/bootconfig.sh", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "KKFermataSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Central Admin Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8080", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8080"
+                    }, 
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "2500", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralAdminEC2SecurityGroup"
+                        }, 
+                        "ToPort": "2500"
+                    }, 
+                    {
+                        "FromPort": "2500", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKCentralDeliveryEC2SecurityGroup"
+                        }, 
+                        "ToPort": "2500"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce KK Fermata Server SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "KKFermataServer": {
+            "DependsOn": "KKCentralServerC", 
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t1.micro", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKFermataSecurityGroup"
+                    }
+                ], 
+                "SubnetId": {
+                    "Ref": "PublicSubnetB"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "Ecommerce Fermata", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "export HOME=/root", 
+                                "/bin/mkdir -p /app/fermata", 
+                                "cd /app/fermata", 
+                                "/usr/bin/wget http://ghsoftware.s3.amazonaws.com/fermata-0.7.tar.gz", 
+                                "/bin/tar xvfz fermata-0.7.tar.gz", 
+                                "cd fermata-0.7", 
+                                "IP=`hostname | /bin/sed '1,$s/-/./g' | /bin/sed '1,$s/ip.//'`", 
+                                "HOSTNAME=`hostname`", 
+                                "echo \"$IP $HOSTNAME\" >>/etc/hosts", 
+                                "/usr/bin/nohup /usr/bin/java -jar -DjettyPort=8080 -DfermataSmtpPort=2500 fermata.war &", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }
+    }
+}

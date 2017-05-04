@@ -1,0 +1,294 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Ben Prudence 19/10/2016 - Create Full VPC (VPC, 3 Public Subnets, 3 Private Subnets, Internet Gateway, Managed NAT & Routing for EU-WEST-1)",
+
+  "Parameters" : {
+
+        "VPCIPBlock" : {
+          "Description" : "CIDR Block for the VPC, example (10.10.0.0/16). Max = /16",
+          "Type" : "String",
+          "Default" : "10.10.0.0/16"
+        },
+
+        "VPCName" : {
+          "Description" : "Name for the VPC, format (vpc-application-purpose)",
+          "Type" : "String",
+          "Default" : "vpc-"
+        },
+
+        "PubSub1aIPBlock" : {
+          "Description" : "CIDR Block for the Public subnet in AZ eu-west-1a, example (10.10.100.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.100.0/24"
+        },
+
+        "PubSub1bIPBlock" : {
+          "Description" : "CIDR Block for the Public subnet in AZ eu-west-1b, example (10.10.150.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.150.0/24"
+        },
+
+        "PubSub1cIPBlock" : {
+          "Description" : "CIDR Block for the Public subnet in AZ eu-west-1c, example (10.10.200.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.200.0/24"
+        },
+
+        "PriSub1aIPBlock" : {
+          "Description" : "CIDR Block for the Private subnet in AZ eu-west-1a, example (10.10.0.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.0.0/24"
+        },
+
+        "PriSub1bIPBlock" : {
+          "Description" : "CIDR Block for the Private subnet in AZ eu-west-1b, example (10.10.30.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.30.0/24"
+        },
+
+        "PriSub1cIPBlock" : {
+          "Description" : "CIDR Block for the Private subnet in AZ eu-west-1c, example (10.10.60.0/24)",
+          "Type" : "String",
+          "Default" : "10.10.60.0/24"
+        }
+  },
+
+  "Resources" : {
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Ref" : "VPCIPBlock" },
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true",
+        "InstanceTenancy" : "default",
+          "Tags" : [ {"Key" : "Name", "Value" : { "Ref" : "VPCName"} } ]
+      }
+    },
+
+    "PubSub1a" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : "eu-west-1a",
+        "MapPublicIpOnLaunch" : "true",
+        "CidrBlock" : { "Ref" : "PubSub1aIPBlock" },
+        "Tags" : [ {"Key" : "Name", "Value" : "PubSub1a" }, {"Key" : "VPC", "Value" : { "Ref" : "VPCName"}} ]
+      }
+    },
+
+    "PubSub1b" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : "eu-west-1b",
+        "MapPublicIpOnLaunch" : "true",
+        "CidrBlock" : { "Ref" : "PubSub1bIPBlock" },
+        "Tags" : [ {"Key" : "Name", "Value" : "PubSub1b" }, {"Key" : "VPC", "Value" : { "Ref" : "VPCName"}} ]
+      }
+    },
+
+    "PriSub1a" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : "eu-west-1a",
+        "MapPublicIpOnLaunch" : "false",
+        "CidrBlock" : { "Ref" : "PriSub1aIPBlock" },
+        "Tags" : [ {"Key" : "Name", "Value" : "PriSub1a" }, {"Key" : "VPC", "Value" : { "Ref" : "VPCName"}} ]
+      }
+    },
+
+    "PriSub1b" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : "eu-west-1b",
+        "MapPublicIpOnLaunch" : "false",
+        "CidrBlock" : { "Ref" : "PriSub1bIPBlock" },
+        "Tags" : [ {"Key" : "Name", "Value" : "PriSub1b" }, {"Key" : "VPC", "Value" : { "Ref" : "VPCName"}} ]
+      }
+    },
+
+    "PriSub1c" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "AvailabilityZone" : "eu-west-1c",
+        "MapPublicIpOnLaunch" : "false",
+        "CidrBlock" : { "Ref" : "PriSub1cIPBlock" },
+        "Tags" : [ {"Key" : "Name", "Value" : "PriSub1c" }, {"Key" : "VPC", "Value" : { "Ref" : "VPCName"}} ]
+      }
+    },
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [ {"Key" : "Name", "Value" : { "Ref" : "VPCName"} } ]
+      }
+    },
+
+    "AttachGateway" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "EIP1" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {"Domain" : "vpc"}
+    },
+
+    "NAT1" : {
+      "DependsOn" : "AttachGateway",
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+        "AllocationId" : { "Fn::GetAtt" : ["EIP1", "AllocationId"]},
+        "SubnetId" : { "Ref" : "PriSub1a"}
+      }
+    },
+
+    "EIP2" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {"Domain" : "vpc"}
+    },
+
+    "NAT2" : {
+      "DependsOn" : "AttachGateway",
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+        "AllocationId" : { "Fn::GetAtt" : ["EIP2", "AllocationId"]},
+        "SubnetId" : { "Ref" : "PriSub1b"}
+      }
+    },
+
+    "EIP3" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {"Domain" : "vpc"}
+    },
+
+    "NAT3" : {
+      "DependsOn" : "AttachGateway",
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+        "AllocationId" : { "Fn::GetAtt" : ["EIP3", "AllocationId"]},
+        "SubnetId" : { "Ref" : "PriSub1c"}
+      }
+    },
+
+    "PubRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Name", "Value" : "Public1" } ]
+      }
+    },
+
+    "PriRouteTable1a" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Name", "Value" : "Private1a" } ]
+      }
+    },
+
+    "PriRouteTable1b" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Name", "Value" : "Private1b" } ]
+      }
+    },
+
+    "PriRouteTable1c" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "Tags" : [ {"Key" : "Name", "Value" : "Private1c" } ]
+      }
+    },
+
+    "PubRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PubRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+
+    "PriRoute1a" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : ["NAT1", "PriRouteTable1a"],
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PriRouteTable1a" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "NatGatewayId" : { "Ref" : "NAT1" }
+      }
+    },
+
+    "PriRoute1b" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "NAT2",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PriRouteTable1b" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "NatGatewayId" : { "Ref" : "NAT2" }
+      }
+    },
+
+    "PriRoute1c" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "NAT3",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PriRouteTable1c" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "NatGatewayId" : { "Ref" : "NAT3" }
+      }
+    },
+
+    "SubnetRouteTableAssociation1" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PubSub1a" },
+        "RouteTableId" : { "Ref" : "PubRouteTable" }
+      }
+    },
+
+    "SubnetRouteTableAssociation2" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PubSub1b" },
+        "RouteTableId" : { "Ref" : "PubRouteTable" }
+      }
+    },
+
+    "SubnetRouteTableAssociation4" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PriSub1a" },
+        "RouteTableId" : { "Ref" : "PriRouteTable1a" }
+      }
+    },
+
+    "SubnetRouteTableAssociation5" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PriSub1b" },
+        "RouteTableId" : { "Ref" : "PriRouteTable1b" }
+      }
+    },
+
+    "SubnetRouteTableAssociation6" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PriSub1c" },
+        "RouteTableId" : { "Ref" : "PriRouteTable1c" }
+      }
+    }
+}
+}

@@ -1,0 +1,25 @@
+Singapore VPC to-do:
+
+
+For PH:
+- Test replacing old CentOS AMI with your new one in the CF template, remove redudant instance userdata
+- Add App Server build to CF template (that just creates a blank CentOS7 instance), ensure ELBs can see the App Server & you can ssh to App Server via the Bastion
+- Update Marval ticket 138257, handover to Ivan (cc Mardell) as per below comments
+
+For II:
+- Turn the blank CentOS7 into a fully patched Joomla server (using latest version of Joomla), then create an AMI from that Joomla server
+	useful links:
+		http://www.joomla.org/download.html
+		https://docs.joomla.org/Getting_Started_with_Joomla!
+		https://docs.joomla.org/J2.5:Installing_Joomla
+		https://docs.joomla.org/Start_to_manage_a_Joomla!_1.6_site
+- Acquire SSL cert for cambridge.org.sg, use this to create HTTPS config on the ELB (if Mardell says https required)
+- Copy files across from old server (after they are scanned for any viruses)
+- Liaise with PH/AP to provide sftp access to new Joomla server for Singapore Marketing users 
+	(e.g. we could allow port 22 via the ELB from the Singapore office)
+
+For AP:
+- Update the App Server section of the CF template to use the Joomla AMI
+- Update the AppLoadBalancer section in the CF template, adding in HTTPS config using the cambridge.org.sg SSL cert (if https required)
+- Look at creating a cup-infra S3 bucket (to store stuff that's copied to instances via the CF userdata)
+	rather than having an S3 bucket per project

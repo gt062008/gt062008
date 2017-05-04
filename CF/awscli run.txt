@@ -1,0 +1,28 @@
+AWSCLI Cross Account Access Profiles
+Synopsis
+The script crossaccountprofiles.sh will ask the initiator for information. Once the info has been submitted the script will add the target cross account profile into the config file.
+Information Required
+Root Account IAM Username
+Root Account AWSCLI profile configured
+Root Account AWSCLI profile name
+Target Account ID
+AWSCLI config file location (default: ~/.aws/config)
+Preperation
+Copy the script and store locally. This is because variables will be changed based on the user. + Open the script with an editor and change the variable:
+CONFIG='UserProfile/.aws/config'
+Run Script
+Run the bash script and enter the variables as prompted.
+Root Account IAM Username
+Root AWSCLI Profile Name
+Target Account ID Confluence Site
+CrossAccount AWSCLI Profile Name (User Preference)
+Once the data is inputted the script will complete and output the entry made into the config file. Read the output and confirm all is okay.
+Test
+Dependant on the IAM Role permissions the easiest command to try will be:
+aws s3 ls --profile <CrossAccount Profile Name>
+Enter your Root Account MFA token and the command should run as expected and list S3 buckets in the account you have crossed into.
+NOTES
+The script automatically makes the Cross Account AWSCLI profile default to:
+region = eu-west-1
+output = json
+If you wish to change this than edit the script for future profiles or manually change them by editing the CONFIG file.

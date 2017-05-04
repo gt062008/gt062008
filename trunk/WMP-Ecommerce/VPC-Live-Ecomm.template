@@ -1,0 +1,316 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script for CUPS AWS Ecommerce environments, building virtual hardware.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Centos": {
+                "AMI": "ami-306dc547"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "SINGAPORE": {
+                "CIDR": "122.152.164.42/32"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            },
+			"MANILLA4": {
+                "CIDR": "122.55.14.126/32"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateA": {
+                "CIDR": "10.10.27.0/25"
+            }, 
+            "PrivateB": {
+                "CIDR": "10.10.27.128/25"
+            }, 
+            "PrivateC": {
+                "CIDR": "10.10.28.0/25"
+            }, 
+            "PrivateD": {
+                "CIDR": "10.10.28.128/25"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.24.0/21"
+            }
+        }
+    }, 
+    "Parameters": {
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing VPC", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+        "PrivateRouteTable": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing Private Routing table", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing IAM Role for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        },
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "PrivateSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SN"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce Production App Subnet AZ A (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SN"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce Production App Subnet AZ B (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetC": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SN"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce Production DB Subnet AZ A (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetD": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateD", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SN"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce Production DB Subnet AZ B (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SubnetRouteTableAssociationPrivA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivC": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetC"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivD": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetD"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        } 
+    }
+}

@@ -1,0 +1,435 @@
+{
+
+  "Description" : "Test CloudFormation script ereviews.",
+
+   "Parameters" : {
+      "KeyName": {
+         "Description" : "Name of existing SSH Keypair",
+         "Type" : "String",
+         "MinLength" : "1",
+         "MaxLength" : "255",
+         "AllowedPattern" : "[\\x20-\\x7E]*",
+         "ConstraintDescription" : "can contain only ASCII characters."
+      } 
+   },
+
+   "Mappings" : {
+
+      "SubnetConfig" : {
+         "VPC"      : { "CIDR" : "10.10.15.0/24" },
+         "PublicA"  : { "CIDR" : "10.10.15.0/26" },
+         "PublicA2" : { "CIDR" : "10.10.15.64/26" },
+         "PublicB"  : { "CIDR" : "10.10.15.128/27" },
+         "PrivateB" : { "CIDR" : "10.10.15.160/27" },
+         "PublicC"  : { "CIDR" : "10.10.15.192/27" },
+         "PrivateC" : { "CIDR" : "10.10.15.224/27" }
+       },
+	   
+	   "CUPSSubnetConfig" : {
+         "CAMINFRA"     : { "CIDR" : "131.111.159.0/24" },
+         "CAMPT"        : { "CIDR" : "131.111.154.0/24" }
+       },
+
+       "AWSAMI" : {   
+          "NAT"      : { "AMI" : "ami-ed352799" },
+		  "WEB"      : { "AMI" : "ami-39529c4e" },
+		  "ADMIN"    : { "AMI" : "ami-672ce210" },
+		  "ACS"      : { "AMI" : "ami-d91ad1ae" }
+       }
+   },
+
+   
+  "Resources" : {
+
+
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews VPC" }
+        ]
+      }
+    },
+
+    "PublicSubnetA" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : "eu-west-1a",
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "PublicA", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews AZ=A Public" }
+        ]
+      }
+    },
+
+    "PublicSubnetB" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : "eu-west-1b",
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "PublicB", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews AZ=B Public" }
+        ]
+      }
+    },
+
+    "PublicSubnetC" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : "eu-west-1c",
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "PublicC", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews AZ=C Public" }
+        ]
+      }
+    },
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews IGW" }
+        ]
+      }
+    },
+
+   "GatewayToInternet" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "PublicRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Name", "Value" : "eReviews Public Routing table" }
+        ]
+      }
+    },
+
+    "PublicRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "GatewayToInternet",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PublicRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "InternetGateway" }
+      }
+    },
+   
+    "SubnetRouteTableAssociationPubA" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnetA" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+    "SubnetRouteTableAssociationPubB" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnetB" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+    "SubnetRouteTableAssociationPubC" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PublicSubnetC" },
+        "RouteTableId" : { "Ref" : "PublicRouteTable" }
+      }
+    },
+
+   "PrivateSubnetB" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : "eu-west-1b",
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "PrivateB", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Private" },
+          { "Key" : "Name", "Value" : "eReviews AZ=B Private" }
+        ]
+      }
+    },
+
+    "PrivateSubnetC" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+		"AvailabilityZone" : "eu-west-1c",
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "PrivateC", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Private" },
+          { "Key" : "Name", "Value" : "eReviews AZ=C Private" }
+        ]
+      }
+    },
+
+    "PrivateRouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Network", "Value" : "Private" },
+          { "Key" : "Name", "Value" : "eReviews Private Routing table" }
+        ]
+      }
+    },
+
+   "PrivateRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "NATDevice",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    },
+	
+   "SubnetRouteTableAssociationPrivB" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnetB" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+      }
+    },
+
+    "SubnetRouteTableAssociationPrivC" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PrivateSubnetC" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" }
+      }
+    },
+
+	"NATIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "DependsOn" : "GatewayToInternet",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    },
+	
+   "NATDevice" : {
+      "Type" : "AWS::EC2::Instance",
+	  "DependsOn" : "NATSecurityGroup",
+      "Properties" : {
+        "InstanceType" : "t1.micro" ,
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PublicSubnetA" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", "NAT", "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }],
+		"Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Project", "Value" : "eReviews" },
+		  { "Key" : "Owner", "Value" : "Paul Telford" },
+		  { "Key" : "Platform", "Value" : "Admin" },
+          { "Key" : "Name", "Value" : "er-nat" }
+        ]
+      }
+    },
+
+   "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "All",  "ToPort" : "All",  "CidrIp" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ] } } ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "All",  "ToPort" : "All",  "CidrIp" : "0.0.0.0/0" } ],
+		"Tags" : [
+		   { "Key" : "Name", "Value" : "er-nat" }
+		]
+       }
+     },
+	 
+	 "AdminDevice" : {
+      "Type" : "AWS::EC2::Instance",
+	  "DependsOn" : "ADMINSecurityGroup",
+      "Properties" : {
+        "InstanceType" : "m3.medium" ,
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PublicSubnetA" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", "ADMIN", "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "ADMINSecurityGroup" }],
+		"Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Project", "Value" : "eReviews" },
+		  { "Key" : "Owner", "Value" : "Paul Telford" },
+		  { "Key" : "Platform", "Value" : "Admin" },
+          { "Key" : "Name", "Value" : "er-admin" }
+        ]
+      }
+    },
+
+   "ADMINSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22",  "CidrIp" : { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMINFRA", "CIDR" ] } } ,
+           { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMPT", "CIDR" ] } } ],
+        "SecurityGroupEgress" : [
+           { } ],
+		"Tags" : [
+		   { "Key" : "Name", "Value" : "er-admin" }
+		]
+       }
+     },
+  
+  "WEBSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+		"GroupDescription" : "eReviews Web Server",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMINFRA", "CIDR" ] } } ,
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMPT", "CIDR" ] } } ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "All",  "ToPort" : "All",  "CidrIp" : "0.0.0.0/0" } ],
+		"Tags" : [
+		   { "Key" : "Name", "Value" : "er-web" }
+		]
+       }
+    },
+  
+  "WEBLBSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+	  "Properties" : {
+		"GroupDescription" : "eReviews Web Server Load Balancer",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" :  { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMINFRA", "CIDR" ] }  } ,
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" :  { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMPT", "CIDR" ] } } ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "All",  "ToPort" : "All",  "CidrIp" : "0.0.0.0/0" } ],
+		"Tags" : [
+		   { "Key" : "Name", "Value" : "er-web-lb" }
+		]
+       }
+    },
+	
+  "WebServer1" : {
+      "Type" : "AWS::EC2::Instance",
+	  "DependsOn" : "WEBSecurityGroup",
+      "Properties" : {
+        "InstanceType" : "m3.medium" ,
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PrivateSubnetB" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", "WEB", "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "WEBSecurityGroup" }],
+		"Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+          { "Key" : "Project", "Value" : "eReviews" },
+		  { "Key" : "Owner", "Value" : "Paul Telford" },
+		  { "Key" : "Platform", "Value" : "Web" },
+          { "Key" : "Name", "Value" : "er-web-1" }
+        ],
+		"UserData" : { "Fn::Base64" : {"Fn::Join" : ["",[
+		   "#!/bin/bash",
+		   "chkconfig httpd on",
+		   "chkconfig jboss5 on"]]}}
+      }
+    },
+	
+	"WebLoadBalancer" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "LoadBalancerName" : "er-webapp-lb",
+		"Scheme" : "internet-facing",
+        "Listeners" : [ { 
+		   "LoadBalancerPort" : "80", 
+		   "InstancePort" : "80", 
+		   "Protocol" : "HTTP",
+		   "PolicyNames" : [ "er-Sticky" ] } ],
+        "LBCookieStickinessPolicy" : [{ 
+		   "PolicyName" : "er-Sticky",
+		   "CookieExpirationPeriod" : "100" }],
+		"Subnets" : [ { "Ref" : "PrivateSubnetB" }, { "Ref" : "PrivateSubnetC" } ],
+		"Instances" : [ { "Ref" : "WebServer1" } ],
+		"SecurityGroups" : [ { "Ref" : "WEBLBSecurityGroup" } ],
+        "CrossZone" : "true",
+		"HealthCheck" : {
+          "Target" : "HTTP:80/",
+          "HealthyThreshold" : "3",
+          "UnhealthyThreshold" : "5",
+          "Interval" : "15",
+          "Timeout" : "10"
+        }
+      }
+    },
+	
+	"BastionIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "DependsOn" : "GatewayToInternet",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "BastionHost" }
+      }
+    },
+
+    "BastionHost" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "m3.medium" ,
+        "KeyName"  : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PublicSubnetA" },
+        "ImageId"  : { "Fn::FindInMap" : [ "AWSAMI", "ADMIN", "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "BastionSecurityGroup" }]
+      }
+    },
+
+    "BastionSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+		"GroupDescription" : "Enable access to the Bastion host",
+        "VpcId" : { "Ref" : "VPC" },
+		
+		"SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : { "Fn::FindInMap" : [ "CUPSSubnetConfig", "CAMINFRA", "CIDR" ] } } ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "All",  "ToPort" : "All",  "CidrIp" : "0.0.0.0/0" } ],
+		"Tags" : [
+		   { "Key" : "Name", "Value" : "er-admin" }
+		]
+       }
+    }
+},
+
+  "AWSTemplateFormatVersion": "2010-09-09"
+   
+}
+
+    
+    

@@ -1,0 +1,142 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "CloudFormation RDS template",
+
+	"Parameters": {
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+		"DBName": {
+			"Description" : "The database name",
+			"Type": "String"
+		},
+
+		"DBUser": {
+			"NoEcho": "true",
+			"Description" : "The database admin account username",
+			"Type": "String"
+		},
+
+		"DBPassword": {
+			"NoEcho": "true",
+			"Description" : "The database admin account password",
+			"Type": "String"
+		},
+		
+		"DBStorage" : {
+			"Description" : "The database Allocated Storage",
+			"Type" : "Number",
+			"Default" : "50"
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Type": "String"
+		},
+		
+		"PrivateDataSubnet1" : {
+			"Description" : "One of Three private Data subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateDataSubnet2" : {
+			"Description" : "Two of Three private Data subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateDataSubnet3" : {
+			"Description" : "Three of Three private Data subnets.",
+			"Default" : "",
+			"Type": "String"
+		},		
+		"PrivateData1CIDR" : {
+			"Description" : "Private Data1 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},		
+		"PrivateData2CIDR" : {
+			"Description" : "Private ataApp2 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},		
+		"PrivateData3CIDR" : {
+			"Description" : "Private Data3 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		}
+	},
+
+	"Resources" : {
+		"MyDB" : {
+			"Type" : "AWS::RDS::DBInstance",
+			"DependsOn": "MyRDSParamGroup",
+			"Properties" : {
+				"DBName" : { "Ref" : "DBName" },
+				"VPC" : { "Ref" : "VPCId"},
+				"Subnet" : [{ "Ref" : "PrivateDataSubnet1"}, { "Ref" : "PrivateDataSubnet2"}, { "Ref" : "PrivateDataSubnet3"} ],
+				"AllocatedStorage" : { "Ref": "DBStorage"},
+				"DBSecurityGroups" : { "Ref" : "DBSecurityGroup"},
+				"DBInstanceClass" : "db.m3.medium",
+				"Engine" : "MySQL",
+				"EngineVersion" : "5.6.19",
+				"DBUser" : { "Ref" : "DBUser" },
+				"DBPassword" : { "Ref" : "DBPassword" },
+				"DBParameterGroupName" : { "Ref" : "MyRDSParamGroup" }
+			}
+		},
+		
+		"DBSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription": "Open database for access",
+				"SecurityGroupIngress" : [
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : {"Ref" : "PrivateData1CIDR"}},
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : {"Ref" : "PrivateData2CIDR"}},
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : {"Ref" : "PrivateData3CIDR"}}
+				],
+				"SecurityGroupEgress" : { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"}
+			}
+		},
+  
+
+		"MyRDSParamGroup" : {
+			"Type": "AWS::RDS::DBParameterGroup",
+			"Properties" : {
+				"Family" : "MySQL5.6",
+				"Description" : "CloudFormation Database Parameter Group",
+				"Parameters" : {
+					"autocommit" : "1" ,
+					"general_log" : "1"
+				}
+			}
+		}
+	},
+
+	"Outputs" : {
+		"JDBCConnectionString": {
+			"Description" : "JDBC connection string for the database",
+			"Value" : { "Fn::Join": [ "", [ "jdbc:mysql://",
+				{ "Fn::GetAtt": [ "MyDB", "Endpoint.Address" ] },
+				":",
+				{ "Fn::GetAtt": [ "MyDB", "Endpoint.Port" ] },
+				"/",
+				{ "Ref": "DBName" }]]
+			}
+		},
+		"RdsDbId": {
+			"Value" : { "Ref" : "MyDB" }
+		},
+		"DatabaseUser":{
+			"Value": { "Ref" : "DBUser"}
+		},
+		"DatabasePassword": {
+			"Value": { "Ref" : "DBPassword" }
+		},
+		"DBSecurityGroup": {
+			"Value": { "Ref" : "DBSecurityGroup" }
+		}
+	}
+}

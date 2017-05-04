@@ -1,0 +1,38 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "0.1 - Ben Prudence 26/10/2016 - Create Security Group for Trend DSM (IT Security Account)",
+
+  "Parameters" : {
+
+        "VPC" : {
+          "Description" : "VPC for Security Group to be created within",
+          "Type" : "AWS::EC2::VPC::Id"
+        }
+
+    },
+
+  "Resources" : {
+
+"SGDSMINTAgentRelay" : {
+   "Type" : "AWS::EC2::SecurityGroup",
+   "Properties" : {
+      "GroupDescription" : "Trend DSM to agent and relay communication (IT Security Account)",
+      "VpcId" : {"Ref" : "VPC"},
+      "SecurityGroupIngress" : [{
+            "IpProtocol" : "tcp",
+            "FromPort" : "4118",
+            "ToPort" : "4118",
+            "CidrIp" : "172.23.138.0/24"
+          },
+          {
+            "IpProtocol" : "tcp",
+            "FromPort" : "4122",
+            "ToPort" : "4122",
+            "CidrIp" : "172.23.138.0/24"
+            }],
+      "Tags" : [ {"Key" : "Name", "Value" : "SG-DSM-INT-AgentRelay" }]
+   }
+}
+}
+}

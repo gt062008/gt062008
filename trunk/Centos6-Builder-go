@@ -1,0 +1,1 @@
+aws cloudformation create-stack --stack-name CUP-Centos6-Gold-20160824 --profile cambridge --region eu-west-1 --template-body file:///root/svn/AWS/CloudFormation/trunk/Centos6-Builder.template --parameters file:///root/svn/AWS/CloudFormation/trunk/Centos6-Builder.cfg

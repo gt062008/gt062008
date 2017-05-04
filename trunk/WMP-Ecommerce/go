@@ -1,0 +1,8 @@
+if test "$#" -ne 1
+then
+  echo "Need to be told the environment name to use"
+  exit 1
+fi
+Environment=$1
+Stack=Ecommerce-${Environment}
+aws cloudformation create-stack --stack-name $Stack --region eu-west-1 --profile cambridge --template-url https://s3-eu-west-1.amazonaws.com/cup-wmp-ecomm-files/cloudformation/Ecommerce.template --parameters file:///root/svn/AWS/CloudFormation/trunk/WMP-Ecommerce/cfg/Ecommerce.cfg

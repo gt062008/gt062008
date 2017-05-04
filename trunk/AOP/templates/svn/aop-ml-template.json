@@ -1,0 +1,450 @@
+{
+	"AWSTemplateFormatVersion":"2010-09-09",
+	"Description":"Create a cluster with three node or more nodes, multi az, load balanced, MarkLogic Cluster. MarkLogic-7.0-20140529.x86_64.rpm",
+	"Parameters":{
+		"AdminUser":{
+			"Description":"The MarkLogic Administrator Username",
+			"Type":"String"
+		},
+		"AdminPass":{
+			"Description":"The MarkLogic Administrator Password",
+			"Type":"String",
+			"NoEcho":"true"
+		},
+		"InstanceType":{
+			"Description":"Type of EC2 instance to launch",
+			"Type":"String",
+			"Default":"m1.medium",
+			"AllowedValues":["m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.medium","m3.large","m3.xlarge","m3.2xlarge"]
+		},
+		"IAMRole":{
+			"Description":"IAM Role",
+			"Type":"String"
+		},
+		"Licensee":{
+			"Description":"The MarkLogic Licensee or 'none'",
+			"Type":"String",
+			"Default":"none"
+		},
+		"LicenseKey":{
+			"Description":"The MarkLogic License Key or 'none'",
+			"Type":"String",
+			"Default":"none"
+		},
+		"KeyName":{
+			"Description":"Name of and existing EC2 KeyPair to enable SSH access to the instance",
+			"Type":"String"
+		},
+		"LogSNS":{
+			"Description":"SNS Topic for logging - optional/advanced",
+			"Type":"String",
+			"Default":"none"
+		},
+		"NodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"0",
+			"MaxValue":"20",
+			"Default":"1"
+		},
+		"VolumeSize":{
+			"Description":"The EBS Data volume size (GB) for all nodes",
+			"Type":"Number",
+			"MinValue":"10",
+			"MaxValue":"1000",
+			"Default":"10"
+		},
+		"PrivateELBSubnet2" : {
+			"Description" : "A public VPC subnet ID.",
+			"Type": "String"
+		},
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c",
+			"MinLength": "1",
+			"MaxLength": "255"
+			}
+	},
+	"Conditions":{
+		"UseLogSNS": { "Fn::Not": [{ "Fn::Equals" : [{ "Ref":"LogSNS" },"none"] }]}
+	},
+	
+	"Mappings": {
+		"AWSInstanceType2Arch" : {
+			"t1.micro"    : { "Arch" : "64"   },
+			"t2.micro"    : { "Arch" : "64"  },
+			"t2.small"    : { "Arch" : "64"  },
+			"t2.medium"   : { "Arch" : "64"  }, 
+			"m1.small"    : { "Arch" : "64"   },
+			"m1.medium"   : { "Arch" : "64"   },
+			"m1.large"    : { "Arch" : "64"   },
+			"m1.xlarge"   : { "Arch" : "64"   },
+			"m2.xlarge"   : { "Arch" : "64"   },
+			"m2.2xlarge"  : { "Arch" : "64"   },
+			"m2.4xlarge"  : { "Arch" : "64"   },
+			"m3.medium"   : { "Arch" : "64"  },
+			"m3.large"    : { "Arch" : "64"  },
+			"m3.xlarge"   : { "Arch" : "64"  },
+			"m3.2xlarge"  : { "Arch" : "64"  }
+		},
+		
+		"Region2AZ" :  {
+			"eu-west-1" : { "a" : "eu-west-1a", "b" : "eu-west-1b", "c" : "eu-west-1c"}
+		}
+		
+		"AWSRegionArch2AMI" : {
+			"eu-west-1a"	: { "64" : "ami-99af26ee"},
+			"eu-west-1b"	: { "64" : "ami-99af26ee"},
+			"eu-west-1c"	: { "64" : "ami-99af26ee"}
+		}
+	},
+	
+	
+	"Resources": {
+		"S3LogBucket": {
+			"Type": "AWS::S3::Bucket",
+			"DeletionPolicy" : "Retain",
+			"Properties" :{
+				"AccessControl": "Private",
+				"BucketName" : "aop-ml-logs",
+				"LifecycleConfiguration" : {
+					"Rules" : [{
+						"ExpirationInDays": 30,
+						"Status" : "Enabled"
+					} ]
+				}
+			}
+		},
+		"S3LogBucketPolicy": {
+			"Type": "AWS::S3::BucketPolicy",
+			"Properties": {
+				"Bucket": {
+					"Ref": "S3LogBucket"
+				},
+				"PolicyDocument": {
+					"Statement": [ {
+						"Action" : ["S3:*"],
+						"Effect": "Allow",
+						"Resource": {"Fn::Join": ["",["arn:aws:s3:::",{ "Ref": "S3LogBucket" } , "/", "Logs", "/AWSLogs/", "/*" ]]},
+						"Principal": "*"
+					} ]
+				}
+			}
+		},
+	
+		"MarklogicVolume1":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone1"},
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ "Key":"Name", "Value":"MarkLogicData 1" }],
+				"VolumeType":"standard"
+			}
+		},
+		
+		"MarklogicVolume2":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone2"},
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ "Key":"Name", "Value":"MarkLogicData 1" }],
+				"VolumeType":"standard"
+			}
+		},
+		
+		"MarklogicVolume3":{
+			"Type":"AWS::EC2::Volume",
+			"Properties":
+			{
+				"AvailabilityZone": { "Ref":"AvailabilityZone3"},
+				"Size": { "Ref":"VolumeSize"},
+				"Tags": [{ "Key":"Name", "Value":"MarkLogicData 1" }],
+				"VolumeType":"standard"
+			}
+		},
+		
+		"MarkLogicSDBDomain":{
+			"Type":"AWS::SDB::Domain",
+			"Properties":
+			{
+				"Description":"Simple DB auto-created and used as cluster name"
+			}
+		},
+		
+		"MarkLogicServerGroup1":{
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"AvailabilityZones":[{ "Ref":"AvailabilityZone1"}],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig1"},
+				"MinSize":"0",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"NotificationConfiguration":{"TopicARN":{"Ref":"LogSNS"}, "NotificationTypes":
+				["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]}
+			}
+		},
+		
+		"MarkLogicServerGroup2":{
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"AvailabilityZones":[{ "Ref":"AvailabilityZone2"}],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig1"},
+				"MinSize":"0",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"NotificationConfiguration":{"TopicARN":{"Ref":"LogSNS"}, "NotificationTypes":
+				["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]}
+			}
+		},
+		
+		"MarkLogicServerGroup3":{
+			"Type":"AWS::AutoScaling::AutoScalingGroup",
+			"Properties":
+			{
+				"AvailabilityZones":[{ "Ref":"AvailabilityZone3"}],
+				"LaunchConfigurationName":{"Ref":"LaunchConfig1"},
+				"MinSize":"0",
+				"MaxSize":{"Ref":"NodesPerZone"},
+				"DesiredCapacity":{"Ref":"NodesPerZone"},
+				"Cooldown":"300",
+				"HealthCheckType":"EC2",
+				"HealthCheckGracePeriod":"300",
+				"NotificationConfiguration":{"TopicARN":{"Ref":"LogSNS"}, "NotificationTypes":
+				["autoscaling:EC2_INSTANCE_LAUNCH","autoscaling:EC2_INSTANCE_LAUNCH_ERROR","autoscaling:EC2_INSTANCE_TERMINATE","autoscaling:EC2_INSTANCE_TERMINATE_ERROR"]}
+			}
+		},
+		
+		"LaunchConfig1":{
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups":[{"Ref":"InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"ImageId":[{"Fn::FindInMap":["AWSRegionArch2AMI",{"Ref":"AWS::Region"}, "64"]}, {"Fn::FindInMap":["Region2AZ", "eu-west-1", "a"]}{"Fn::FindInMap":["AWSInstanceType2Arch",{"Ref":"InstanceType"}, "Arch"]}],
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"MarkLogicSDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"MarklogicVolume1"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",
+						
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=1\n",
+						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"LogSNS"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"LaunchConfig2":{
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups":[{"Ref":"InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"ImageId":[{"Fn::FindInMap":["AWSRegionArch2AMI",{"Ref":"AWS::Region"}, "64"]}, {"Fn::FindInMap":["AWSInstanceType2Arch",{"Ref":"InstanceType"}, "Arch"]}],
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"MarkLogicSDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"MarklogicVolume1"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",
+						
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=1\n",
+						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"LogSNS"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"LaunchConfig3":{
+			"Type":"AWS::AutoScaling::LaunchConfiguration",
+			"Properties":{
+				"KeyName":{"Ref":"KeyName"},
+				"SecurityGroups":[{"Ref":"InstanceSecurityGroup"}],
+				"InstanceType":{"Ref":"InstanceType"},
+				"ImageId":[{"Fn::FindInMap":["AWSRegionArch2AMI",{"Ref":"AWS::Region"}, "64"]}, {"Fn::FindInMap":["AWSInstanceType2Arch",{"Ref":"InstanceType"}, "Arch"]}],
+
+				"UserData":{
+					"Fn::Base64":{
+						"Fn::Join":["", ["MARKLOGIC_CLUSTER_NAME=", { "Ref":"MarkLogicSDBDomain" },"\n","MARKLOGIC_EBS_VOLUME=",{"Ref":"MarklogicVolume1"},",",
+						{"Ref":"VolumeSize" },",*\n","MARKLOGIC_NODE_NAME=NodeA#\n",
+						
+						"MARKLOGIC_ADMIN_USERNAME=",{"Ref":"AdminUser"},"\n","MARKLOGIC_ADMIN_PASSWORD=",{"Ref":"AdminPass"},"\n","MARKLOGIC_CLUSTER_MASTER=1\n",
+						
+						"MARKLOGIC_LICENSEE=",{"Ref":"Licensee"},"\n","MARKLOGIC_LICENSE_KEY=",{"Ref":"LicenseKey"},"\n","MARKLOGIC_LOG_SNS=",{"Ref":"LogSNS"},"\n"]]
+					}
+				}
+			}
+		},
+		
+		"ElasticLoadBalancer":{
+			"DependsOn": "S3LogBucketPolicy",
+			"Type":"AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"AppCookieStickinessPolicy":[{"CookieName":"SessionID","PolicyName":"MLSession" }],
+				"AvailabilityZones":{"Ref":"AvailabilityZone3"},
+				"Subnets" : [ { "Ref" : "PrivateELBSubnet2" } ],
+				"ConnectionDrainingPolicy": {
+					"Enabled":"true",
+					"Timeout":"60"
+				},
+				"CrossZone":"true",
+				"Listeners":[
+					{
+						"LoadBalancerPort":"8000",
+						"InstancePort":"8000",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					
+					{
+						"LoadBalancerPort":"8001",
+						"InstancePort":"8001",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					
+					{
+						"LoadBalancerPort":"8002",
+						"InstancePort":"8002",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8003",
+						"InstancePort":"8003",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8004",
+						"InstancePort":"8004",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8005",
+						"InstancePort":"8005",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8006",
+						"InstancePort":"8006",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8007",
+						"InstancePort":"8007",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]},
+					{
+						"LoadBalancerPort":"8008",
+						"InstancePort":"8008",
+						"Protocol":"HTTP",
+						"PolicyNames":["MLSession"]}
+				],
+			
+				"HealthCheck":{
+					"Target":"HTTP:7997/",
+					"HealthyThreshold":"3",
+					"UnhealthyThreshold":"5",
+					"Interval":"10",
+					"Timeout":"5"
+				},
+				"AccessLoggingPolicy": {
+					"S3BucketName": {
+						"Ref": "S3LogBucket"
+					},
+					"S3BucketPrefix": "Logs",
+					"Enabled": "true",
+					"EmitInterval" : "60"
+				}
+			}
+		},
+		
+		"InstanceSecurityGroup":{
+			"Type":"AWS::EC2::SecurityGroup",
+			"Properties":{
+				"GroupDescription":"Enable SSH access and HTTP access on the inbound port",
+				"SecurityGroupIngress":[
+					{
+						"IpProtocol":"tcp",
+						"FromPort":"22",
+						"ToPort":"22",
+						"CidrIp":"0.0.0.0/0"
+					},
+					{
+						"IpProtocol":"tcp",
+						"FromPort":"7998",
+						"ToPort":"7998",
+						"CidrIp":"0.0.0.0/0"
+					},
+					{
+						"IpProtocol":"tcp",
+						"FromPort":"8000",
+						"ToPort":"8010",
+						"SourceSecurityGroupOwnerId":{"Fn::GetAtt":["ElasticLoadBalancer","SourceSecurityGroup.OwnerAlias"]},
+						"SourceSecurityGroupName":{"Fn::GetAtt":["ElasticLoadBalancer","SourceSecurityGroup.GroupName"]}		
+					},
+					{
+						"IpProtocol":"tcp",
+						"FromPort":"8000",
+						"ToPort":"8010",
+						"CidrIp":"0.0.0.0/0"
+					},
+					{
+						"IpProtocol":"tcp",
+						"FromPort":"7997",
+						"ToPort":"7997",
+						"SourceSecurityGroupOwnerId":{ "Fn::GetAtt":["ElasticLoadBalancer","SourceSecurityGroup.OwnerAlias"]},
+						"SourceSecurityGroupName":{"Fn::GetAtt":["ElasticLoadBalancer","SourceSecurityGroup.GroupName"]}
+					}
+				]
+			}
+		},
+		
+		"InstanceSecurityGroupIngress":{
+			"Type":"AWS::EC2::SecurityGroupIngress",
+			"Properties":{
+				"IpProtocol":"tcp",
+				"GroupName":{"Ref":"InstanceSecurityGroup"},
+				"FromPort":"7999",
+				"ToPort":"7999",
+				"SourceSecurityGroupName":{"Ref":"InstanceSecurityGroup"}
+			}
+		}
+	},
+	
+	"Outputs":{
+		"URL":{
+			"Description":"The URL of the MarkLogic Cluster",
+			"Value":{"Fn::Join":["",["http://",{"Fn::GetAtt":["ElasticLoadBalancer","DNSName"]},":8001"]]}
+		},
+		"S3BucketURL" : {
+			"Value" : { "Fn::Join" : [
+				"", [ "https://", { "Fn::GetAtt" : [ "S3LogBucket", "DomainName" ] } ]
+			] },
+			"Description" : "Name of S3 bucket to hold log content"
+		}
+	}
+}

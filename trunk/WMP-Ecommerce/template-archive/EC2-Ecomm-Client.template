@@ -1,0 +1,639 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script Ecommerce EC2 instances.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ACS": {
+                "AMI": "ami-d91ad1ae"
+            }, 
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Amazon": {
+                "AMI": "ami-748e2903"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMFWALL": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "MANILLA1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLA2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLA3": {
+                "CIDR": "121.97.40.34/32"
+            }
+        }
+    }, 
+    "Parameters": {
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of admin server security group", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of IAM Role to associate with EC2 instance for S3 access", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of private subnet a", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PublicSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of public subnet a", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PublicSubnetB": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of public subnet b", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing VPC", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "KKClientServer": {
+            "Properties": {
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sdf", 
+                        "Ebs": {
+                            "VolumeSize": "10"
+                        }
+                    }
+                ], 
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "KKClientSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce-Konakart-Client"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/sbin/groupadd -g 506 wmpecommdev", 
+                                "/usr/sbin/useradd -g wmpecommdev -c \"Ecommerce Developer account\" wmpecommdev", 
+                                "cd /home/wmpecommdev", 
+                                "/bin/mkdir .ssh", 
+                                "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCvloyc5wTv3UBFzG+3KHnT4x0ZMXEjxZkKpW0R5IbD+7qRWjpbyQOhhf2rMe6yVZ+V0plHBDqiZTPXntnWhPfQ9hRxF9Flf1TW+PQPdxZzXpDsXg2Ep1onMFF6fBFv8SdaK5+tfrCh144eUyPriygXcSjyhGJ8Rlw4p24yt3tBAi8rRUUdO13JB50lMvm+mQPpFQF9fIjZAIolCdwVCIbXMDgbYctkhN9p07MfCcknLIYO6OixB7TQN6eZg9MDksuiWyOOq+KHfa71THtX1yyBR9CtZFSQLbpCGMTJHIpSKR4nPUdWvjT7V9bPYjvPZOUhKQe3YsdvM84oFDsDmMLL wmpecommdev@puppet.aws.internal' >.ssh/authorized_keys", 
+                                "/bin/chown -R wmpecommdev:wmpecommdev .ssh", 
+                                "/bin/chmod 700 .ssh", 
+                                "/bin/chmod 600 .ssh/authorized_keys", 
+                                "/sbin/mkfs.ext4 /dev/xvdf", 
+                                "echo \"/dev/xvdf       /app    ext4    defaults        0 0\" >>/etc/fstab", 
+                                "/bin/mkdir /app", 
+                                "/bin/mount /app", 
+                                "/bin/mkdir /app/konakart", 
+                                "echo \"#Developers\" >>/etc/sudoers", 
+                                "echo \"Cmnd_Alias CMDS = /sbin/service konakart start, /sbin/service/konakart stop, /app/konakart/bin/startkonakart.sh, /app/konakart/bin/stopkonakart.sh, /etc/init.d/konakart *\" >>/etc/sudoers", 
+                                "echo \"##DEVS ALL=(ALL) ALL\" >>/etc/sudoers", 
+                                "echo \"wmpecommdev ALL= NOPASSWD:CMDS\" >>/etc/sudoers", 
+                                "/bin/sed -n '1,4p' /etc/puppet/puppet.conf >/tmp/puppet.conf", 
+                                "echo server puppet.int.aws.cambridge.org >>/tmp/puppet.conf", 
+                                "/bin/sed -n '5,$p' /etc/puppet/puppet.conf >>/tmp/puppet.conf", 
+                                "/bin/mv /tmp/puppet.conf /etc/puppet/puppet.conf", 
+                                "/usr/bin/yum -y install mysql", 
+                                "###/usr/bin/yum -y install httpd", 
+                                "/usr/bin/yum -y install java-1.7.0-openjdk", 
+                                "/usr/bin/yum -y install telnet", 
+                                "###/usr/bin/yum -y install cup-mod_jk-1.2.37", 
+                                "echo 'export JAVA_HOME=/usr/lib/jvm/jre' >>/root/.profile", 
+                                "echo 'export HOME=/root' >>/root/.profile", 
+                                ". /root/.profile", 
+                                "/bin/mkdir /usr/java", 
+                                "/bin/ln /usr/lib/jvm/jre /usr/java/default", 
+                                "cd /tmp", 
+                                "/usr/bin/curl \"https://bootstrap.pypa.io/get-pip.py\" -o \"get-pip.py\"", 
+                                "/usr/bin/python get-pip.py", 
+                                "/usr/bin/pip install awscli", 
+                                "/bin/mkdir /root/.aws", 
+                                "echo \"[default]\" >/root/.aws/credentials", 
+                                "echo \"aws_access_key_id = AKIAJOTSLEWDNIASSXCQ\" >>/root/.aws/credentials", 
+                                "echo \"aws_secret_access_key = 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\" >>/root/.aws/credentials", 
+                                "echo \"[default]\" >>/root/.aws/config", 
+                                "echo \"region = eu-west-1\" >>/root/.aws/config", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/KonaKart-7.3.0.1-Linux-Install-64 /tmp/KonaKart-7.3.0.1-Linux-Install-64", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/KonaKart-Enterprise-7.3.0.1-Linux-Install-64 /tmp/KonaKart-Enterprise-7.3.0.1-Linux-Install-64", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/files.tar /tmp/files.tar", 
+                                "/usr/bin/aws s3 cp s3://cup-wmp-ecomm-files/mnl_kk_client_config.tar /tmp/mnl_kk_client_config.tar", 
+                                "/bin/chmod u+x ./KonaKart*", 
+                                "./KonaKart-7.3.0.1-Linux-Install-64 -S -DDatabaseType mysql -DJavaJRE /usr/lib/jvm/jre -DDatabaseUrl jdbc:mysql://konakart-db-infra.aws.cambridge.org:3306/konakart?zeroDateTimeBehaviour=convertToNull -DDatabaseUsername konakart -DDatabasePassword ymVCcnFI56O6Ptn5 -DInstallationDir /app/konakart -DSharedCustomers True -DEngineMode 2 -DSharedProducts True -DSharedCatagories True -DLoadDB 0 2>/tmp/afile", 
+                                "./KonaKart-Enterprise-7.3.0.1-Linux-Install-64 -S -DDatabaseType mysql -DJavaJRE /usr/lib/jvm/jre -DDatabaseUrl jdbc:mysql://konakart-db-infra.aws.cambridge.org:3306/konakart?zeroDateTimeBehaviour=convertToNull -DDatabaseUsername konakart -DDatabasePassword ymVCcnFI56O6Ptn5 -DInstallationDir /app/konakart -DSharedCustomers True -DEngineMode 2 -DSharedProducts True -DSharedCatagories True -DLoadDB 0 2>/tmp/bfile", 
+                                "/bin/tar -xpf ./files.tar", 
+                                "/bin/cp files/konakart /etc/init.d", 
+                                "/sbin/chkconfig --add konakart", 
+                                "/bin/cp files/server.xml.tc7 /app/konakart/conf/server.xml", 
+                                "cd /app/konakart", 
+                                "/bin/tar -xpf /tmp/mnl_kk_client_config.tar", 
+                                "##/bin/rm -rf files files.tar mnl_kk_client_config.tar Konakart*", 
+                                "/usr/sbin/groupadd -g 1001 tomcat", 
+                                "/usr/sbin/useradd -d /app/konakart -g tomcat -c tomcat -u 1001 -s /bin/bash tomcat", 
+                                "/bin/chown -R tomcat:tomcat /app/konakart", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "KKClientLBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Client Server Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA3", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA2", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "MANILLA1", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMFWALL", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMPT", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8783"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSSubnetConfig", 
+                                "CAMINFRA", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "8790"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "ELB"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce KK Client Server Load Balancer SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "KKClientLoadBalancer": {
+            "Properties": {
+                "CrossZone": "true", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "8", 
+                    "Target": "HTTP:8780/", 
+                    "Timeout": "5", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "Instances": [
+                    {
+                        "Ref": "KKClientServer"
+                    }
+                ], 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "8780", 
+                        "LoadBalancerPort": "8780", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8783", 
+                        "LoadBalancerPort": "8783", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8789", 
+                        "LoadBalancerPort": "8789", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }, 
+                    {
+                        "InstancePort": "8790", 
+                        "LoadBalancerPort": "8790", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": "Konakart-Client-Load-Balancer", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "KKClientLBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnetA"
+                    }, 
+                    {
+                        "Ref": "PublicSubnetB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        "KKClientSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Konakart Client Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "FromPort": "8790", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKClientLBSecurityGroup"
+                        }, 
+                        "ToPort": "8790"
+                    }, 
+                    {
+                        "FromPort": "8780", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKClientLBSecurityGroup"
+                        }, 
+                        "ToPort": "8780"
+                    }, 
+                    {
+                        "FromPort": "8783", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "KKClientLBSecurityGroup"
+                        }, 
+                        "ToPort": "8783"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce KK Client SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }
+    }
+}

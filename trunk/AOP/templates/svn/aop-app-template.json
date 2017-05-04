@@ -1,0 +1,321 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "AWS CloudFormation App Template. This creates an auto scaling group behind a load balancer with a simple health check. The Auto Scaling launch configuration includes an update policy that will keep 2 instances running while doing an autoscaling rolling update. The update will roll forward only when the ELB health check detects an updated instance in-service.",
+
+	"Parameters": {
+	
+		"HostName": {
+			"Description" : "Base hostname for access to services",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "255",
+			"AllowedPattern" : "[\\x20-\\x7E]*",
+			"ConstraintDescription" : "can contain only ASCII characters."
+		},
+	
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+		
+		"InstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "m1.small",
+			"AllowedValues": [ "t1.micro", "t2.micro", "t2.small", "t2.medium", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Default" : "aopdev-ops",
+			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Default" : "",
+			"Type": "String"
+		},
+		
+		"PrivateELB1CIDR" : {
+			"Description" : "Private ELB1 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateELB2CIDR" : {
+			"Description" : "Private ELB2 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateELB3CIDR" : {
+			"Description" : "Private ELB3 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateApp1CIDR" : {
+			"Description" : "Private App1 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateApp2CIDR" : {
+			"Description" : "Private App2 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateApp3CIDR" : {
+			"Description" : "Private App3 CIDR",
+			"Type" : "String",
+			"Default" : ""
+		},
+		
+		"PrivateELBSubnet1" : {
+			"Description" : "One of Three private ELB subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateELBSubnet2" : {
+			"Description" : "Two of Three private ELB subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateELBSubnet3" : {
+			"Description" : "Three of Three private ELB subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		
+		"PrivateAppSubnet1" : {
+			"Description" : "One of Three private App subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateAppSubnet2" : {
+			"Description" : "Two of Three private App subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		"PrivateAppSubnet3" : {
+			"Description" : "Three of Three private App subnets.",
+			"Default" : "",
+			"Type": "String"
+		},
+		
+		"BaseAmi" : {
+			"Default" : "ami-15c55a62",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		},
+
+		"SSHLocation" : {
+			"Description" : "The IP address range that can be used to SSH to the EC2 instances",
+			"Type": "String",
+			"Default": "0.0.0.0/0"
+		}
+	},
+
+	"Resources": {
+	
+		"PrivateELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 80",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : {"Ref" : "PrivateELB1CIDR"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : {"Ref" : "PrivateELB2CIDR"} },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : {"Ref" : "PrivateELB3CIDR"} }
+				],
+				"SecurityGroupEgress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} 
+				]
+			}
+		},
+		
+		"InstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Enable SSH access and HTTP access on the configured port",
+				"SecurityGroupIngress": [ 
+					{ "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": { "Ref" : "PrivateApp1CIDR" } },
+					{ "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": { "Ref" : "PrivateApp1CIDR" } },
+					{ "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": { "Ref" : "PrivateApp1CIDR" } }
+				]
+			}
+		},
+		
+		"S3LogBucket": {
+			"Type": "AWS::S3::Bucket",
+			"DeletionPolicy" : "Retain",
+			"Properties" :{
+				"AccessControl": "Private",
+				"BucketName" : "aop-app-logs",
+				"LifecycleConfiguration" : {
+					"Rules" : [{
+						"ExpirationInDays": 30,
+						"Status" : "Enabled"
+					} ]
+				}
+			}
+		},
+		
+		"S3LogBucketPolicy": {
+			"Type": "AWS::S3::BucketPolicy",
+			"Properties": {
+				"Bucket": {
+					"Ref": "S3LogBucket"
+				},
+				"PolicyDocument": {
+					"Statement": [ {
+						"Action" : ["S3:*"],
+						"Effect": "Allow",
+						"Resource": {"Fn::Join": ["",["arn:aws:s3:::",{ "Ref": "S3LogBucket" } , "/", "Logs", "/AWSLogs/", "*" ]]},
+						"Principal": "*"
+					} ]
+				}
+			}
+		},
+		
+		"WebServerGroup": {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "ElasticLoadBalancer",
+			"Properties" : {
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+				"MinSize" : "1",
+				"MaxSize" : "1",
+				"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+				"VPCZoneIdentifier" : [ { "Ref" : "PrivateAppSubnet1" }, { "Ref" : "PrivateAppSubnet2" }, { "Ref" : "PrivateAppSubnet3" } ]
+			}
+		},
+
+		"LaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Ref" : "BaseAmi" },
+				"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+					"DOMAIN=.",  { "Ref" : "HostName" }, "\n",
+					"HOSTNAME=logshipper-$INSTANCE\n",
+					"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+					"if grep -q '7' /etc/redhat-release; then\n",
+					"  hostnamectl set-hostname $HOSTNAME\n",
+					"else\n",
+					"  hostname $HOSTNAME\n",
+					" sed -i -e \"s/^HOSTNAME=.*/HOSTNAME=$HOSTNAME$DOMAIN/\" /etc/sysconfig/network\n",
+					"fi\n",
+					"puppet agent -t\n"
+				]]}}, 
+				"SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+				"InstanceType" : { "Ref" : "InstanceType" }
+			}
+		},
+		
+		"WebServerScaleUpPolicy" : {
+			"Type" : "AWS::AutoScaling::ScalingPolicy",
+			"Properties" : {
+				"AdjustmentType" : "ChangeInCapacity",
+				"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+				"Cooldown" : "60",
+				"ScalingAdjustment" : "1"
+			}
+		},
+		
+		"WebServerScaleDownPolicy" : {
+			"Type" : "AWS::AutoScaling::ScalingPolicy",
+			"Properties" : {
+				"AdjustmentType" : "ChangeInCapacity",
+				"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+				"Cooldown" : "60",
+				"ScalingAdjustment" : "-1"
+			}
+		},
+
+		"CPUAlarmHigh": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "90",
+				"AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+				"Dimensions": [{
+					"Name": "AutoScalingGroupName",
+					"Value": { "Ref": "WebServerGroup" }
+				}],
+				"ComparisonOperator": "GreaterThanThreshold"
+			}
+		},
+		
+		"CPUAlarmLow": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-down if CPU < 70% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "70",
+				"AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+				"Dimensions": [{
+					"Name": "AutoScalingGroupName",
+					"Value": { "Ref": "WebServerGroup" }
+				}],
+				"ComparisonOperator": "LessThanThreshold"
+			}
+		},
+
+		"ElasticLoadBalancer": {
+			"DependsOn" : [ "S3LogBucket", "S3LogBucketPolicy"],
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"Subnets" : [ { "Ref" : "PrivateAppSubnet1" }, { "Ref" : "PrivateAppSubnet2" },{"Ref" : "PrivateAppSubnet3"} ],
+				"SecurityGroups" : [ { "Fn::GetAtt" : [ "PrivateELBSecurityGroup", "GroupId" ] } ],
+				"Listeners": [ {
+					"LoadBalancerPort": "80",
+					"InstancePort": "80",
+					"Protocol": "HTTP"
+				} ],
+				"HealthCheck": {
+					"Target": "HTTP:80/",
+					"HealthyThreshold": "3",
+					"UnhealthyThreshold": "5",
+					"Interval": "20",
+					"Timeout": "5"
+				},
+				"AccessLoggingPolicy": {
+					"S3BucketName": {
+						"Ref": "S3LogBucket"
+					},
+					"S3BucketPrefix": "Logs",
+					"Enabled": "true",
+					"EmitInterval" : "60"
+				}
+			}
+		}
+	},
+
+	"Outputs": {
+		"URL": {
+			"Description": "URL of the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "ElasticLoadBalancer", "DNSName" ] } ] ] }
+		},
+		"PrivateELBSecurityGroup" : {
+			"Description" : "Private security group",
+			"Value" : { "Ref" : "PrivateELBSecurityGroup"}
+		}
+	}
+}

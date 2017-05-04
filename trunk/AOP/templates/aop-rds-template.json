@@ -1,0 +1,223 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+	"Description" : "CloudFormation RDS template",
+
+	"Parameters": {
+		"HostName": {
+			"Description" : "Base hostname for access to services",
+			"Type": "String",
+			"Default" : "mysql"
+		},
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "prod",
+			"Type" : "String"
+		},
+
+		"DBUser": {
+			"NoEcho": "true",
+			"Description" : "The database admin account username",
+			"Type": "String",
+			"Default" : ""
+		},
+
+		"DBPassword": {
+			"NoEcho": "true",
+			"Description" : "The database admin account password",
+			"Type": "String",
+			"Default" : ""
+		},
+		
+		"DBStorage" : {
+			"Description" : "The database Allocated Storage",
+			"Type" : "Number",
+			"Default" : "100"
+		},
+
+		"DatabaseInstanceClass" : {
+			"Description" : "The class of RDS instance",
+			"Type" : "String",
+			"Default" : "db.m3.medium",
+			"AllowedValues" : ["db.t2.micro", "db.t2.small", "db.t2.medium", "db.m3.medium", "db.m3.large", "db.m3.2xlarge", "db.r3.large", "db.r3.2xlarge", "db.r3.4xlarge"]
+		},
+
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "aop.cambridge.org"
+		},
+
+    "DNSZoneId" : {
+			"Default" : "/hostedzone/Z3LZDTQKNP5I6F",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String"
+		},
+
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Type": "String",
+			"Default" : ""
+		},
+		
+		"PrivateDataSubnets" : {
+			"Description" : "Three private Data subnets.",
+			"Type": "CommaDelimitedList"
+		},
+		
+		"PrivateAppIpBlocks" : {
+			"Description" : "Private Data1 CIDR",
+			"Type" : "CommaDelimitedList",
+			"Default" : "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+		},
+
+    "MonitoringGroup" : {
+      "Default" : "sg-e653ff83",
+      "Description" : "Monitoring security group",
+      "Type" : "String"
+    },
+
+    "CiGroup" : {
+      "Default" : "sg-9027e9f5",
+      "Description" : "CI builder security group",
+      "Type" : "String"
+    },
+
+    "VpnGroup" : {
+      "Default" : "sg-c7bc7ea2",
+      "Description" : "VPN server security group",
+      "Type" : "String"
+    }
+	},
+
+	"Resources" : {
+	
+		"DBSubnetGroup" : {
+			"Type" : "AWS::RDS::DBSubnetGroup",
+			"Properties" : {
+				"DBSubnetGroupDescription" : "Private Subnets",
+				"SubnetIds" : [
+					{ "Fn::Select" : [ "0", {"Ref" : "PrivateDataSubnets"} ] },
+					{ "Fn::Select" : [ "1", {"Ref" : "PrivateDataSubnets"} ] },
+					{ "Fn::Select" : [ "2", {"Ref" : "PrivateDataSubnets"} ] }
+				]
+			}
+		},
+		"MyDB" : {
+			"Type" : "AWS::RDS::DBInstance",
+			"DependsOn": "MyRDSParamGroup",
+			"Properties" : {
+				"DBInstanceIdentifier" : { "Ref" : "HostName"},
+				"MultiAZ" : "True",
+				"VPCSecurityGroups": [{ "Ref" : "DBSecurityGroup"}],
+				"DBSubnetGroupName" : {"Ref" : "DBSubnetGroup"},
+				"AllocatedStorage" : { "Ref": "DBStorage"},
+				"StorageType" : "gp2",
+				"DBInstanceClass" : { "Ref" : "DatabaseInstanceClass"},
+				"Engine" : "MySQL",
+				"EngineVersion" : "5.6.22",
+				"MasterUsername" : { "Ref" : "DBUser" },
+				"MasterUserPassword" : { "Ref" : "DBPassword" },
+				"DBParameterGroupName" : { "Ref" : "MyRDSParamGroup" },
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-Database" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+		
+		"DBSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription": "Open database for access",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] }},
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "SourceSecurityGroupId" : { "Ref" : "VpnGroup" } },
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "SourceSecurityGroupId" : { "Ref" : "MonitoringGroup" } },
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "SourceSecurityGroupId" : { "Ref" : "CiGroup" } }
+				],
+				"SecurityGroupEgress": [
+					{"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp" : "0.0.0.0/0"}
+                ],
+				"Tags" : [ {
+					"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-Db-secgroup" ] ] }
+				}, {
+					"Key" : "aop_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "aop_role",
+					"Value" : { "Ref" : "HostName" }
+				}, {
+					"Key" : "Business",
+					"Value" : "AcPro"
+				}, {
+					"Key" : "Platform",
+					"Value" : "AOP"
+				}]
+			}
+		},
+  
+
+		"MyRDSParamGroup" : {
+			"Type": "AWS::RDS::DBParameterGroup",
+			"Properties" : {
+				"Family" : "MySQL5.6",
+				"Description" : "CloudFormation Database Parameter Group",
+				"Parameters" : {
+					"autocommit" : "1" ,
+					"general_log" : "1"
+				}
+			}
+		},
+
+
+		"dbHostname" : {
+      "Type" : "AWS::Route53::RecordSet",
+        "Properties" : {
+           "HostedZoneId" : { "Ref" : "DNSZoneId" },
+           "Comment" : "CNAME for DB",
+           "Name" :  { "Fn::Join" : [ "", [ { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] },
+           "Type" : "CNAME",
+           "TTL" : "300",
+           "ResourceRecords" : [ { "Fn::GetAtt" : [ "MyDB", "Endpoint.Address" ] } ]
+        }
+    }
+
+	},
+
+	"Outputs" : {
+		"DBHostname": {
+			"Description" : "Hostname database",
+			"Value" : { "Fn::GetAtt": [ "MyDB", "Endpoint.Address" ] }
+		},
+		"DBCname": {
+			"Description" : "Cname for database",
+			"Value" :  { "Fn::Join" : [ "", [ { "Ref" : "HostName" }, ".", { "Ref" : "EnvType" }, ".", { "Ref" : "DomainName"} ] ] }
+		},
+		"DatabaseUser":{
+			"Value": { "Ref" : "DBUser"}
+		},
+		"DatabasePassword": {
+			"Value": { "Ref" : "DBPassword" }
+		},
+		"DBSecurityGroup": {
+			"Value": { "Ref" : "DBSecurityGroup" }
+		}
+	}
+}

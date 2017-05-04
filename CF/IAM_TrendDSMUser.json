@@ -1,0 +1,53 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Ben Prudence 03/11/2016 - Create IAM User, IAM Group & IAM Policy for Trend DSM",
+
+  "Resources" : {
+
+      "TrendDSMGroup" : {
+        "Type": "AWS::IAM::Group",
+        "Properties": {
+            "GroupName": "TrendDSM_Group",
+            "Path": "/",
+          }
+        },
+
+        "TrendDSMPolicy" : {
+          "DependsOn" : "TrendDSMGroup",
+          "Type": "AWS::IAM::Policy",
+          "Properties": {
+              "PolicyName": "TrendDSM_Policy",
+              "Groups" : [ { "Ref" : "TrendDSMGroup" } ],
+              "PolicyDocument" : {
+                  "Version": "2012-10-17",
+                  "Statement": [  {
+                      "Sid": "cloudconnector",
+                      "Effect": "Allow",
+                      "Action": [
+                          "ec2:DescribeImages",
+                          "ec2:DescribeInstances",
+                          "ec2:DescribeRegions",
+                          "ec2:DescribeSubnets",
+                          "ec2:DescribeTags",
+                          "ec2:DescribeVpcs",
+                          "iam:ListAccountAliases",
+                          "sts:AssumeRole"
+                      ],
+                      "Resource": "*"
+                    } ]
+              }
+            }
+          },
+
+          "TrendDSMUser" : {
+            "DependsOn" : "TrendDSMPolicy",
+            "Type": "AWS::IAM::User",
+            "Properties": {
+                "UserName": "-service-TrendDSM",
+                "Path": "/",
+                "Groups" : [ { "Ref" : "TrendDSMGroup" } ],
+              }
+            }
+    }
+}

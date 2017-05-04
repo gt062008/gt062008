@@ -1,0 +1,296 @@
+{
+	"AWSTemplateFormatVersion" : "2010-09-09",
+  
+	"Description" : "AWS CloudFormation MongoDb, ELB, ELB Security group, Auto scaling, launch config, security, s3 bucket template",
+	"Parameters" : {
+		"InstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "m1.small",
+			"AllowedValues": [ "t1.micro", "t2.micro", "t2.small", "t2.medium", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.medium", "m3.large", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		
+		"VolumeSize" : {
+			"Description": "Volume size for each EBS volume"},
+			"Type" : "Number",
+			"Default" : "10"
+		},
+		
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"ConstraintDescription" : "must be the name of an existing EC2 KeyPair."
+		},
+
+		"IAMrole" : {
+			"Default" : "arn:aws:iam::291050698310:instance-profile/readTagsRole",
+			"Description" : "ARN of IAM role for instances - read tags is the minimum requirement",
+			"Type" : "String"
+		},
+
+		"AvailabilityZone" : {
+			"Description" : "Availability Zone to launch in",
+			"Type" : "String",
+			"Default" : "eu-west-1a",
+			"AllowedValues" : [ "eu-west-1a", "eu-west-1b", "eu-west-1c" ],
+			"ConstraintDescription" : "must be a valid eu availability zone"
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Type": "String"
+		},
+				
+		"PublicELBSubnet" : {
+			"Description" : "A public ELB subnet ID.",
+			"Type": "CommaDelimitedList"
+		},
+		
+		"PrivateELBSubnet" : {
+			"Description" : "A private ELB subnet ID.",
+			"Type": "CommaDelimitedList"
+		},
+		
+		"PrivateAppSubnet" : {
+			"Description" : "A private App subnet ID.",
+			"Type": "CommaDelimitedList"
+		},
+		
+		"PrivateDataSubnet" : {
+			"Description" : "A private VPC subnet ID.",
+			"Type": "CommaDelimitedList"
+		},
+
+		"MonitoringGroup" : {
+			"Description" : "Monitoring security group",
+			"Type" : "String"
+		},
+		"NodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"0",
+			"MaxValue":"20",
+			"Default":"1"
+		}
+	},
+	
+	"Mappings": {
+		"AWSInstanceType2Arch" : {
+			"t1.micro"    : { "Arch" : "64"   },
+			"t2.micro"    : { "Arch" : "64"  },
+			"t2.small"    : { "Arch" : "64"  },
+			"t2.medium"   : { "Arch" : "64"  }, 
+			"m1.small"    : { "Arch" : "64"   },
+			"m1.medium"   : { "Arch" : "64"   },
+			"m1.large"    : { "Arch" : "64"   },
+			"m1.xlarge"   : { "Arch" : "64"   },
+			"m2.xlarge"   : { "Arch" : "64"   },
+			"m2.2xlarge"  : { "Arch" : "64"   },
+			"m2.4xlarge"  : { "Arch" : "64"   },
+			"m3.medium"   : { "Arch" : "64"  },
+			"m3.large"    : { "Arch" : "64"  },
+			"m3.xlarge"   : { "Arch" : "64"  },
+			"m3.2xlarge"  : { "Arch" : "64"  }
+		},
+		
+		"AWSRegionArch2AMI" : {
+			"eu-west-1"	: { "64" : "ami-99af26ee"}
+		}
+	},
+	
+	"Resources" : {
+		"S3LogBucket": {
+			"Type": "AWS::S3::Bucket",
+			"DeletionPolicy" : "Retain",
+			"Properties" :{
+				"AccessControl": "Private",
+				"BucketName" : "aop-mongo-logs",
+				"LifecycleConfiguration" : {
+					"Rules" : [{
+						"ExpirationInDays": 30,
+						"Status" : "Enabled"
+					} ]
+				}
+			}
+		},
+		"S3LogBucketPolicy": {
+			"Type": "AWS::S3::BucketPolicy",
+			"Properties": {
+				"Bucket": {
+					"Ref": "S3LogBucket"
+				},
+				"PolicyDocument": {
+					"Statement": [ {
+						"Action" : ["S3:*"],
+						"Effect": "Allow",
+						"Resource": {"Fn::Join": ["",["arn:aws:s3:::",{ "Ref": "S3LogBucket" } , "/", "Logs", "/AWSLogs/", "/*" ]]},
+						"Principal": "*"
+					} ]
+				}
+			}
+		},
+		"WebServerGroup": {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Properties" : {
+				"AvailabilityZones" : [ { "Ref" : "AvailabilityZone" } ],
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+				"MinSize" : "1",
+				"MaxSize" : {"Ref":"NodesPerZone"},
+				"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+				"VPCZoneIdentifier" : [ { "Ref" : "PrivateELBSubnet" } ]
+			}
+		},
+
+
+		"LaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Fn::FindInMap" : [ "AWSRegionArch2AMI", { "Ref" : "AWS::Region" }, "64" ] },
+				"SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+				"InstanceType" : { "Ref" : "InstanceType" },
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["",[
+					"#!/bin/bash","\n",
+					"yum install -y httpd","\n",
+					"yum install nodejs npm --enablerepo=epel","\n",
+					"npm install -g inherits grunt-cli","\n",
+					"echo `facter ipaddress_eth0` > /var/www/html/index.html","\n",
+					"service httpd start","\n",
+					"chkconfig httpd on","\n"
+				] ] } }
+			}
+		},
+
+		"PrivateELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 80",
+				"VpcId" : [ { "Ref" : "VPCId"}],
+				"SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0" } ],
+				"SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ]
+			}
+		},
+
+		"ElasticLoadBalancer": {
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"Subnets" : [ { "Ref" : "PrivateELBSubnet" } ],
+				"SecurityGroups" : [ { "Ref" : "PrivateELBSecurityGroup" } ],
+				"Listeners": [ {
+					"LoadBalancerPort": "80",
+					"InstancePort": "80",
+					"Protocol": "HTTP"
+				} ],
+				"HealthCheck": {
+					"Target": "HTTP:80/",
+					"HealthyThreshold": "3",
+					"UnhealthyThreshold": "5",
+					"Interval": "20",
+					"Timeout": "5"
+				},
+				"AccessLoggingPolicy": {
+					"S3BucketName": {
+						"Ref": "S3LogBucket"
+					},
+					"S3BucketPrefix": "Logs",
+					"Enabled": "true",
+					"EmitInterval" : "60"
+				}
+			}
+		},
+
+		"InstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Enable SSH access and HTTP access on the configured port",
+				"SecurityGroupIngress": [ 
+					{ "IpProtocol": "tcp", "FromPort": "22", "ToPort": "22", "CidrIp": { "Ref" : "SSHLocation" } },
+					{ "IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0" }
+				]
+			}
+		},
+
+		"WebServerInstanceProfile" : { 
+			"Type": "AWS::IAM::InstanceProfile",
+			"Properties": {
+				"Path": "/",
+				"Roles": [ { "Ref": "DescribeHealthRole" } ]
+			}
+		},
+
+		"DescribeHealthRole" : {
+			"Type": "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Statement": [ {
+						"Effect": "Allow",
+						"Principal": {
+							"Service": [ "ec2.amazonaws.com" ]
+						},
+						"Action": [ "sts:AssumeRole" ]
+					} ]
+				},
+				"Path": "/",
+				"Policies" : [{
+					"PolicyName": "describe-instance-health-policy",
+					"PolicyDocument": {
+						"Statement": [{
+                          "Effect": "Allow",
+                          "Action": [ "elasticloadbalancing:DescribeInstanceHealth" ],
+                          "Resource": "*"
+						}]
+					}
+				}]
+			}
+		}
+
+		"MongoSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "MongoDB security group",
+				"VPCId" : { "Ref" : "VPCId" },
+				"SecurityGroupIngress" : [
+				{"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", { "Ref" : "InstanceSecurityGroup"} },
+				]
+			}
+		},
+		"MongoSecurityGroupIngress" : {
+			"Type" : "AWS::EC2::SecurityGroupIngress",
+			"Properties" : {
+				"GroupName" : { "Ref" : "MongoSecurityGroup" },
+				"IpProtocol" : "tcp",
+				"FromPort" : "27017",
+				"ToPort" : "27017",
+				"SourceSecurityGroupName" : { "Ref" : "MongoSecurityGroup" }
+			}
+		},
+		"AdminIngress" : {
+			"Type" "AWS:EC2:SecurityGroupIngress",
+			"Properties" : {
+				"GroupName" : { "Ref" : "MongoSecurityGroup"},
+				"IpProtocol" : "tcp",
+				"FromPort" : "28017",
+				"ToPort" : "29017",
+				"SourceSecurityGroupName" : { "Ref" : "MongoSecurityGroup" }
+			}
+		}
+		"MongoVolume1" : {
+			"Type" : "AWS::EC2::Volume",
+			"Properties" : {
+				"Size" : { "Ref" : "VolumeSize" },
+				"AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ]}
+			}
+		},
+		"MongoVolumeMount1" : {
+			"Type" : "AWS::EC2::VolumeAttachment",
+			"Properties" : {
+				"InstanceId" : {"Ref" : "MongoInstance"},
+				"VolumeId" : { "Ref" : "MongoVolume"},
+				"Device" : "/dev/sdh1"
+			}
+		}
+    },
+		
+	}
+}

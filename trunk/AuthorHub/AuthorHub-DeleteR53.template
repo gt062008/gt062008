@@ -1,0 +1,18 @@
+{
+    "Changes": [
+        {
+            "Action": "DELETE", 
+            "ResourceRecordSet": {
+                "Name": "authorhub-sftp.aws.cambridge.org.", 
+                "ResourceRecords": [
+                    {
+                        "Value": "IPADDRESS"
+                    }
+                ], 
+                "TTL": 300, 
+                "Type": "CNAME"
+            }
+        }
+    ], 
+    "Comment": "Delete Route53 A record to AuthorHub SFTP ELB"
+}

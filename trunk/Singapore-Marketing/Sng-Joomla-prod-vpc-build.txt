@@ -1,0 +1,1780 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+
+    "Description": "CloudFormation script for Singapore Joomla AWS prod environment", 
+    
+    "Parameters": {
+        "SSHKeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String",
+            "Default" : "sng-joomla-key"
+        }
+    }, 
+    
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-56b7eb04"
+            }, 
+            "Centos": {
+                "AMI": "ami-16e9d544"
+            }, 
+            "NAT": {
+                "AMI": "ami-780a432a"
+            }
+        }, 
+        
+        "CUPSubnetConfig": {
+            "CAMFW": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINT159": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMINT154": {
+                "CIDR": "131.111.154.0/24"
+            },
+			"NYFW1": {
+                "CIDR": "38.105.193.36/32"
+            },
+            "NYFW2": {
+                "CIDR": "65.202.160.242/32"
+            },
+            "MANILLAFW1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLAFW2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLAFW3": {
+                "CIDR": "121.97.40.34/32"
+            },
+            "SINGAPOREFW": {
+                "CIDR": "122.152.164.42/32"
+            }
+        }, 
+        
+        "VPCSubnetConfig": {
+            "VPC": {
+                "CIDR": "10.10.19.0/26"
+            },
+            "Public":  {
+                "CIDR": "10.10.19.0/28"
+            },
+            "PrivateApp": {
+                "CIDR": "10.10.19.16/28"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.19.32/28"
+            }, 
+            "PrivateDBB": {
+			    "CIDR": "10.10.19.48/28"
+			}
+			
+        },
+        
+        "VPCTags": {
+            "Platform": {
+                "Tag": "Singapore-Joomla"
+            },
+            "Application": {
+                "Tag": "Singapore Joomla CMS"
+            },
+            "Environment": {
+                "Tag": "Production"
+            },
+            "Business-Stream": {
+                "Tag": "ELT Marketing Singapore"
+            },
+            "Owner": {
+                "Tag": "Melissa Sjaichudin"
+            }
+        },
+        
+        "IamRole": {
+            "S3ReadAccess": {
+                "Role": "sng-joomla-s3-read"
+            }
+        }
+    }, 
+    
+    "Resources": {
+        "AdminSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT159", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT154", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Bastion SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "AdminSecurityGroupWfH": {
+            "Properties": {
+                "GroupDescription": "Defines working-from-home access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": "176.250.58.130/32",
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Bastion WfH SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+
+        "AdminIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AdminServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        
+        "AdminServer": {
+            "DependsOn": "AdminSecurityGroup",
+            "DependsOn": "AdminSecurityGroupWfH",
+			"DependsOn": "NATDevice",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "IamInstanceProfile": {
+                   "Fn::FindInMap": [
+                        "IamRole",
+                        "S3ReadAccess",
+                        "Role"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AdminSecurityGroup"    
+                    },
+                    {
+                        "Ref": "AdminSecurityGroupWfH"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Bastion"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Bastion Server"
+                    }
+                ],
+				"UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash",
+								"/usr/bin/yum -y update",                           
+                                "/usr/bin/aws s3 cp s3://cup-sng-joomla-files/sng-joomla-key.pem /home/ec2-user/.ssh/sng-joomla-key.pem", 
+                                "/usr/bin/aws s3 cp s3://cup-sng-joomla-files/sng-joomla-config /home/ec2-user/.ssh/config", 
+                                "/bin/chown -R ec2-user:ec2-user /home/ec2-user/.ssh", 
+                                "/bin/chmod 700 /home/ec2-user/.ssh", 
+                                "/bin/chmod 600 /home/ec2-user/.ssh/*",				
+                                "exit"
+                            ]
+                        ]
+                    }
+                }				
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+		
+		        "AppServer": {
+            "DependsOn": "AppServerSecurityGroup",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "IamInstanceProfile": {
+                   "Fn::FindInMap": [
+                        "IamRole",
+                        "S3ReadAccess",
+                        "Role"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppServerSecurityGroup"    
+                    }
+                ], 
+                "SubnetId": {
+                    "Ref": "PrivateSubnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Application"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Application Server"
+                    }
+                ],
+				"UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash",
+								"/usr/bin/yum -y update",                           		
+                                "exit"
+                            ]
+                        ]
+                    }
+                }				
+            }, 
+            "Type": "AWS::EC2::Instance"
+        },
+        
+        "LBSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Load Balancer Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT159", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMINT159", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+					{
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "CAMFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "SINGAPOREFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "SINGAPOREFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "443"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "CUPSubnetConfig", 
+                                "SINGAPOREFW", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }                   
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Prod Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod ELB SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "AppLoadBalancer": {
+            "Properties": {
+                "CrossZone": "false", 
+                "HealthCheck": {
+                    "HealthyThreshold": "2", 
+                    "Interval": "15", 
+                    "Target": "HTTP:80/", 
+                    "Timeout": "10", 
+                    "UnhealthyThreshold": "2"
+                }, 
+                "LBCookieStickinessPolicy": [
+                    {
+                        "CookieExpirationPeriod": "100", 
+                        "PolicyName": "Sticky"
+                    }
+                ], 
+                "Listeners": [
+                    {
+                        "InstancePort": "80", 
+                        "LoadBalancerPort": "80", 
+                        "PolicyNames": [
+                            "Sticky"
+                        ], 
+                        "Protocol": "HTTP"
+                    }
+                ], 
+                "LoadBalancerName": "Sng-Joomla-Prod-ELB", 
+                "Scheme": "internet-facing", 
+                "SecurityGroups": [
+                    {
+                        "Ref": "LBSecurityGroup"
+                    }
+                ], 
+                "Subnets": [
+                    {
+                        "Ref": "PublicSubnet"
+                    }
+                ], 
+                "Tags": [
+                   {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Prod Load Balancer"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod ELB"
+                    }
+                ]
+            }, 
+            "Type": "AWS::ElasticLoadBalancing::LoadBalancer"
+        }, 
+        
+        "AppServerSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Application Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    },
+					{
+                        "FromPort": "80", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "80"
+                    }, 
+                    {
+                        "FromPort": "443", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "443"
+                    },
+					{
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "LBSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    },
+                    {
+                        "FromPort": "5666", 
+                        "IpProtocol": "tcp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "5666"
+                    },
+					{
+                        "FromPort": "-1", 
+                        "IpProtocol": "icmp",
+						"CidrIp": "10.10.248.0/24",
+                        "ToPort": "-1"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "App Server"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod App Server SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Internet Gateway"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+
+        "NATIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        
+        "NATSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "NAT device Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "VPCSubnetConfig", 
+                                "VPC", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod NAT SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+
+        "NATDevice": {
+            "DependsOn": "NATSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "NAT", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "t1.micro", 
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "NATSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "NAT"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod NAT Device"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+           
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Public routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+
+        "PrivateRoute": {
+            "DependsOn": "NATDevice", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "InstanceId": {
+                    "Ref": "NATDevice"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        
+        "PrivateRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Routing table"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        
+        "PublicSubnet": {
+            "Properties": {
+                "AvailabilityZone": "ap-southeast-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "Public", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Subnet (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+
+        "PrivateSubnetApp": {
+            "Properties": {
+                "AvailabilityZone": "ap-southeast-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateApp", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Subnet (Private App)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        
+        "PrivateSubnetDB": {
+            "Properties": {
+                "AvailabilityZone": "ap-southeast-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateDB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Subnet (Private DB)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+		
+        "PrivateSubnetDBB": {
+            "Properties": {
+                "AvailabilityZone": "ap-southeast-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "PrivateDBB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "Subnet"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng-Joomla Prod Subnet (Private DB B)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+        
+        "SubnetRouteTableAssociationPub": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnet"
+                }
+                            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+
+        "SubnetRouteTableAssociationPrivApp": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetApp"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        
+        "SubnetRouteTableAssociationPrivDB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetDB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        
+		"VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "VPCSubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                },
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true", 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Platform", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Application", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Environment", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Business-Stream", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Business-Stream", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "VPCTags", 
+                                "Owner", 
+                                "Tag"
+                            ]
+                        }
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "VPC"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Sng Joomla Prod VPC"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    },
+    
+    "Outputs": {
+        "VPCId": {
+            "Description": "Identity of the created VPC",
+                "Value": { "Ref": "VPC" }
+        }
+    }
+}

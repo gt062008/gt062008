@@ -1,0 +1,21 @@
+- name: provision stack
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  
+  tasks:
+  - name: launch ansible cloudformation
+    cloudformation: >
+      stack_name="ansible-cloudformation" state=present
+      region=eu-east-1 disable_rollback=true
+      template=files/cloudformation-ansible-1.json
+    args:
+      template_parameters:
+        KeyName: muhammads
+        DiskType: ephemeral
+        InstanceType: m1.small
+        ClusterSize: 3
+    register: stack
+  - name: show stack outputs
+    debug: msg="My stack outputs are {{stack.stack_outputs}}"

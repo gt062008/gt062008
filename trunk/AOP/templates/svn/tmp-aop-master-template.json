@@ -1,0 +1,237 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+
+	"Description": "Provisions multiple substacks",
+
+	"Parameters": {
+		"VpcTemplateKey": {
+			"Description": "The key of the template for the Network substack",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-vpc-template.json"
+		},
+		"ELBTemplateKey": {
+			"Description": "The key of the template for the External ELB",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-elb-template.json"
+		},
+		"AppTemplateKey": {
+			"Description": "The key of the template for app componants",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-app-template.json"
+		},
+		"MarklogicTemplateKey": {
+			"Description": "The key of the template for the Network substack",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-ml-template.json"
+		},
+		"MongologicTemplateKey": {
+			"Description": "The key of the template for the Network substack",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-mongo-template.json"
+		},
+		"RdsTemplateKey": {
+			"Description": "The key of the template for the Network substack",
+			"Type": "String",
+			"Default": "aop-cloudformation-templates/prod/aop-rds-template.json"
+		},
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to Hosts",
+			"Default" : "aopdev-ops",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "255",
+			"AllowedPattern": "[\\x20-\\x7E]*",
+			"ConstraintDescription": "can contain only ASCII characters."
+		},
+		"SSHFrom": {
+			"Description": "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
+			"Type": "String",
+			"MinLength": "9",
+			"MaxLength": "18",
+			"Default": "0.0.0.0/0",
+			"AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription": "must be a valid CIDR range of the form x.x.x.x/x."
+		},
+		"NATInstanceType": {
+			"Description": "NAT Device EC2 instance type",
+			"Type": "String",
+			"Default": "m1.small",
+			"AllowedValues": ["t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+			"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+			"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"DatabaseUser": {
+			"NoEcho": "true",
+			"Type": "String",
+			"Description": "Database admin account name",
+			"MinLength": "1",
+			"MaxLength": "16",
+			"AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+			"ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+		},
+		"DatabasePassword": {
+		  "NoEcho": "true",
+		  "Type": "String",
+		  "Description": "Database admin account password",
+		  "MinLength": "1",
+		  "MaxLength": "41",
+		  "AllowedPattern": "[a-zA-Z0-9]*",
+		  "ConstraintDescription": "must contain only alphanumeric characters."
+		},
+		"DatabaseName": {
+		  "Description": "The name of the database",
+		  "Type": "String",
+		  "Default": ""
+		},
+		"AssetsBucketPrefix": {
+		  "Description": "The prefix of the S3 location. A region-specific suffix will be appended, e.g. AssetsBucketPrefix-eu-east-1.",
+		  "Type": "String",
+		  "Default" : "aop-"
+		},
+		"InstanceType": {
+		  "Description": "The type of instance to use for EB servers",
+		  "Type": "String",
+		  "Default": "t1.micro",
+		  "AllowedValues": ["t1.micro", "m1.small", "m1.medium", "m1.large"]
+		}
+	},
+
+	"Resources": {
+		"VPCStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region" }, { "Ref" : "VpcTemplateKey" }]]},
+				"Parameters" : {
+					"KeyName": { "Ref" : "KeyName" },
+					"NATInstanceType" : { "Ref" : "NATInstanceType"},
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3" }
+				}
+			}
+		},
+		"ExternalELB" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region"}, { "Ref" : "ELBTemplateKey" }]]},
+				"Parameters" : {
+					"KeyName": { "Ref" : "KeyName" },
+					"SSHFrom": { "Ref" : "SSHFrom" },
+					"NATInstanceType" : { "Ref" : "NATInstanceType"},
+					"VPCId" : { "Fn::GetAtt" : ["VPCStack", "Outputs.VPCId"] },
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"PublicELBSubnet1" : {"Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet1"]},
+					"PublicELBSubnet1" : {"Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet2"]},
+					"PublicELBSubnet1" : {"Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet3"]}
+				}
+			}
+		},
+		"AppResources" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region" }, { "Ref" : "AppTemplateKey" }]]},
+				"Parameters" : {
+					"KeyName": { "Ref" : "KeyName" },
+					"SSHFrom": { "Ref" : "SSHFrom" },
+					"ELBSecurityGroup" : { "Fn::GetAtt" : ["ExternalELB", "Outputs.ELBSecurityGroup"]},
+					"VPCId" : { "Fn::GetAtt" : ["VPCStack", "Outputs.VPCId"] },
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3" },
+					"PrivateELBSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet1"]},
+					"PrivateELBSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet2"]},
+					"PrivateELBSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet3"]},
+					"PublicELBSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet1"]},
+					"PublicELBSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet2"]},
+					"PublicELBSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet3"]},
+					"PublicAppSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet1"]},
+					"PublicAppSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet2"]},
+					"PublicAppSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet3"]},
+					"PublicAppSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet1"]},
+					"PublicDataSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicDataSubnet2"]},
+					"PublicDataSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicDataSubnet3"]}
+				}
+			}
+		},
+		
+		"MarklogicStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region" }, { "Ref" : "MarklogicTemplateKey" }]]},
+				"Parameters" : {
+					"KeyName": { "Ref" : "KeyName" },
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3" }
+				}
+			}
+		},
+		
+		"MongologicStack" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region" }, { "Ref" : "MongologicTemplateKey" }]]},
+				"Parameters" : {
+					"KeyName": { "Ref" : "KeyName" },
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1" },
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2" },
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3" },
+					"PrivateELBSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet1"]},
+					"PrivateELBSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet2"]},
+					"PrivateELBSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateELBSubnet3"]},
+					"PublicELBSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet1"]},
+					"PublicELBSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet2"]},
+					"PublicELBSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicELBSubnet3"]},
+					"PublicAppSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet1"]},
+					"PublicAppSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet2"]},
+					"PublicAppSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet3"]},
+					"PublicAppSubnet1" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicAppSubnet1"]},
+					"PublicDataSubnet2" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicDataSubnet2"]},
+					"PublicDataSubnet3" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PublicDataSubnet3"]}
+				}
+			}
+		},
+		
+		
+		"RDSResources" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : { "Fn::Join" : ["", [ "http://", { "Ref" : "AWS::Region" }, { "Ref" : "RdsTemplateKey" }]]},
+				"Parameters" : {
+					"DatabaseUser": { "Ref" : "DatabaseUser" },
+					"DatabasePassword": { "Ref" : "DatabasePassword" },
+					"DatabaseName": { "Ref" : "DatabaseName" },          
+					"InstanceSecurityGroup" : { "Fn::GetAtt" : ["VPCStack", "Outputs.InstanceSecurityGroup"] },
+					"VPCId" : { "Fn::GetAtt" : ["VPCStack", "Outputs.VPCId"] },
+					"PrivateSubnet" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateSubnet1"] },
+					"PrivateSubnet" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateSubnet2"] },
+					"PrivateSubnet" : { "Fn::GetAtt" : ["VPCStack", "Outputs.PrivateSubnet3"] }
+				}
+			}
+		}
+	},
+	"Outputs": {
+	}
+}

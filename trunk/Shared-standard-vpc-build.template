@@ -1,0 +1,701 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "Template CloudFormation script for easyjet AWS environments.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ADMIN": {
+                "AMI": "ami-02ace471"
+            }, 
+            "Centos": {
+                "AMI": "ami-1aa0e76d"
+            },
+            "NAT": {
+                "AMI": "ami-076d5d61"
+            }
+        }, 
+        "EJSubnetConfig": {
+            "ACADEMY-6": {
+                "CIDR": "10.66.0.0/16"
+            }, 
+            "ACADEMY-4": {
+                "CIDR": "10.67.0.0/16"
+            },
+            "HANGER89-6": {
+                "CIDR": "10.65.0.0/16"
+            }, 
+            "HANGER89-4": {
+                "CIDR": "10.64.0.0/16"
+            }
+        }, 
+        "SubnetConfig": {
+            "PublicA": {
+                "CIDR": "172.28.0.0/27"
+            }, 
+            "PublicB": {
+                "CIDR": "172.28.0.32/27"
+            }, 
+            "PrivateA": {
+                "CIDR": "172.28.0.64/27"
+            }, 
+            "PrivateB": {
+                "CIDR": "172.28.0.96/27"
+            },
+            "VPC": {
+                "CIDR": "172.28.0.0/25"
+            }
+        }
+    }, 
+    "Parameters": {
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "ADMINSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Defines allowed access to the Admin Bastion server", 
+                "SecurityGroupEgress": [
+                    {}
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "EJSubnetConfig", 
+                                "HANGER89-6", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "EJSubnetConfig", 
+                                "HANGER89-4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }, 
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "EJSubnetConfig", 
+                                "ACADEMY-6", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    },
+                    {
+                        "CidrIp": {
+                            "Fn::FindInMap": [
+                                "EJSubnetConfig", 
+                                "ACADEMY-4", 
+                                "CIDR"
+                            ]
+                        }, 
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    },
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Admin Server Security Group"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "AdminIPAddress": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AdminServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AdminServer": {
+            "DependsOn": "ADMINSecurityGroup", 
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "ADMIN", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "ADMINSecurityGroup"
+                    }
+                ], 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "BAS"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "Linux"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Admin Bastion Server"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "GatewayAttachment": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        }, 
+        "InternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    },
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Internet Gateway"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::InternetGateway"
+        }, 
+        "NATGatewayA": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATIPAddressA", 
+                        "AllocationId"
+                    ]
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                } 
+            }, 
+            "Type": "AWS::EC2::NatGateway"
+        }, 
+        "NATGatewayB": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NATIPAddressB", 
+                        "AllocationId"
+                    ]
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetB"
+                } 
+            }, 
+            "Type": "AWS::EC2::NatGateway"
+        }, 
+        "NATIPAddressA": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc"
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "NATIPAddressB": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "Domain": "vpc"
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "PrivateRouteA": {
+            "DependsOn": "NATGatewayA", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "NatGatewayId": {
+                    "Ref": "NATGatewayA"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTableA"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PrivateRouteB": {
+            "DependsOn": "NATGatewayB", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "NatGatewayId": {
+                    "Ref": "NATGatewayB"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTableB"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PrivateRouteTableA": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PrivateRouteTableB": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Private routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PrivateSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone A (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PrivateSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PrivateB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    },
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone B (Private)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        },
+        "PublicRoute": {
+            "DependsOn": "GatewayAttachment", 
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0", 
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }, 
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }, 
+            "Type": "AWS::EC2::Route"
+        }, 
+        "PublicRouteTable": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Public routing table"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::RouteTable"
+        }, 
+        "PublicSubnetA": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1a", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicA", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone A (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "PublicSubnetB": {
+            "Properties": {
+                "AvailabilityZone": "eu-west-1b", 
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "PublicB", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    },
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Subnet Availability Zone B (Public)"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::Subnet"
+        }, 
+        "SubnetRouteTableAssociationPrivA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTableA"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPrivB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTableB"
+                }, 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPubA": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetA"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "SubnetRouteTableAssociationPubB": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }, 
+                "SubnetId": {
+                    "Ref": "PublicSubnetB"
+                }
+            }, 
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        }, 
+        "VPC": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::FindInMap": [
+                        "SubnetConfig", 
+                        "VPC", 
+                        "CIDR"
+                    ]
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "SharedInfrastructure"
+                    }, 
+                    {
+                        "Key": "Criticality", 
+                        "Value": "Tier 3"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Infrastructure Engineering"
+                    }, 
+                    {
+                        "Key": "OperatingSystem", 
+                        "Value": "None"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Standard VPC"
+                    }
+                ]
+            }, 
+            "Type": "AWS::EC2::VPC"
+        }
+    }
+}

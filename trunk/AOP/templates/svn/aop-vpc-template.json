@@ -1,0 +1,657 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Cloudformation Network Stack",
+	"Parameters" : {
+	
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+
+		"KeyName": {
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Default": "aopdev-ops",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c",
+			"MinLength": "1",
+			"MaxLength": "255"
+			},
+		
+		"NATInstanceType": {
+			"Description": "NET Device EC2 instance type",
+			"Type": "String",
+			"Default": "m1.small",
+			"AllowedValues": ["t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+	
+		"ServerAccess" : {
+			"Description" : "CIDR IP range allowed to login to the NAT instance",
+			"Type" : "String",
+			"MinLength": "9",
+			"MaxLength": "18",
+			"Default" : "0.0.0.0/0",
+			"AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+		},
+		
+		"VPCIpBlock" : {
+			"Description" : "CIDR for VPC",
+			"Type" : "String",
+			"Default" : "10.0.10.0/16"
+		},
+		
+		"PublicELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks",
+			"Type": "CommaDelimitedList",
+			"Default": "10.0.20.0/24, 10.0.21.0/24, 10.0.22.0/24"
+		},
+		
+		"PrivateELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks",
+			"Type": "CommaDelimitedList",
+			"Default": "10.0.30.0/26, 10.0.31.0/26, 10.0.32.0/24"
+		},
+		
+		"PrivateAppIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks",
+			"Type": "CommaDelimitedList",
+			"Default": "10.0.40.0/26, 10.0.41.0/26, 10.0.42.0/24"
+		},
+		
+		"PrivateDataIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks",
+			"Type": "CommaDelimitedList",
+			"Default": "10.0.50.0/26, 10.0.51.0/26, 10.0.52.0/24"
+		}
+			
+	},
+
+	"Mappings" : {
+		
+		"AWSRegion2AMI" : {
+			"eu-west-1"	: { "AMI" : "ami-ed352799"}
+		}
+	},
+
+	"Resources" : {
+
+		"VPC" : {
+		"Type" : "AWS::EC2::VPC",
+		"Properties" : {
+			"CidrBlock" : { "Ref" : "VPCIpBlock"},
+			"Tags" : [ 
+				{"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"}},
+					{ "Key" : "Network", "Value" : "PublicELB" },
+					{ "Key" : "Name", "Value" : "AOP VPC" } 
+				] 
+			}
+		},
+    	
+		"NatSecurityGroup" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "NAT Security Group",
+				"VpcId" : { "Ref" : "VPC" },
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" :  { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] }  },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] }  },
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] } },
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] }  }
+				],
+				        
+				"SecurityGroupEgress": [
+					{"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80","CidrIp": "0.0.0.0/0"}, 
+					{"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0"}
+				],
+				"Tags" : [
+					{ "Key" :  "Name", "Value" : "AOP NAT Security Group"}
+				]
+			}
+		},
+
+		"AOPPublicELBSubnet1" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ 
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+					{ "Key" : "Network", "Value" : "PublicELB" },
+					{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone1"}}
+				]
+			}
+		},
+		
+		"AOPPublicELBSubnet2" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ 
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+					{ "Key" : "Network", "Value" : "PublicELB" },
+					{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone2"}}
+				]
+			}
+		},
+		
+		"AOPPublicELBSubnet3" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ 
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+					{ "Key" : "Network", "Value" : "PublicELB" },
+					{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone3"}}
+				]
+			}
+		},
+
+		"InternetGateway" : {
+			"Type" : "AWS::EC2::InternetGateway",
+			"Properties" : {
+				"Tags" : [
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId"}},
+					{ "Key" : "Network", "Value" : "PublicELB"}
+				]
+			}
+		},
+
+		"GatewayToInternet" : {
+			"DependsOn" : ["VPC", "InternetGateway"],
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"InternetGatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicELBRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : {"Ref" : "VPC"},
+				"Tags" : [ 
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId"}},
+					{ "Key" : "Network", "Value" : "PublicELB"}
+				]
+			}
+		},
+
+		"PublicELBRoute" : {
+			"DependsOn" : ["PublicELBRouteTable", "InternetGateway"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PublicELBRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"GatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicELBSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["AOPPublicELBSubnet1", "PublicELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPublicELBSubnet1" },
+				"RouteTableId" : { "Ref" : "PublicELBRouteTable" }
+			}
+		},
+		
+		"PublicELBSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["AOPPublicELBSubnet2", "PublicELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPublicELBSubnet2" },
+				"RouteTableId" : { "Ref" : "PublicELBRouteTable" }
+			}
+		},
+		
+		"PublicELBSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["AOPPublicELBSubnet3", "PublicELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPublicELBSubnet3" },
+				"RouteTableId" : { "Ref" : "PublicELBRouteTable" }
+			}
+		},
+	
+		"AOPPrivateELBSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateELB1"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone1"}} ]
+			}
+		},
+		
+		"AOPPrivateELBSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateELB2"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone2"}}]
+			}
+		},
+		
+		"AOPPrivateELBSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateELB3"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone3"}}]
+			}
+		},
+	
+		"PrivateELBRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+					{ "Key" : "Network", "Value" : "PrivateELB" }]
+				}
+		},
+ 
+		"PrivateELBSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateELBSubnet1", "PrivateELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateELBSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateELBRouteTable" }
+			}
+		}, 
+		
+		"PrivateELBSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateELBSubnet2", "PrivateELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateELBSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateELBRouteTable" }
+			}
+		}, 
+		
+		"PrivateELBSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateELBSubnet3", "PrivateELBRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateELBSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateELBRouteTable" }
+			}
+		}, 
+		
+		"AOPPrivateAppSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateApp1"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone1"}}]
+			}
+		},
+		
+		"AOPPrivateAppSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateApp2"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone2"}}]
+			}
+		},
+		
+		"AOPPrivateAppSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateApp3"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone3"}}]
+			}
+		},
+	
+		"PrivateAppRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+					{ "Key" : "Network", "Value" : "PrivateApp" }]
+				}
+		},
+ 
+		"PrivateAppSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateAppSubnet1", "PrivateAppRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateAppSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateAppRouteTable" }
+			}
+		},
+		
+		"PrivateAppSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateAppSubnet2", "PrivateAppRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateAppSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateAppRouteTable" }
+			}
+		},
+		
+		"PrivateAppSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateAppSubnet3", "PrivateAppRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateAppSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateAppRouteTable" }
+			}
+		},
+		
+		"AOPPrivateDataSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateData1"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone1"}}]
+			}
+		},
+		
+		"AOPPrivateDataSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateData2"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone2"}}]
+			}
+		},
+		
+		"AOPPrivateDataSubnet3" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "2", {"Ref" : "PrivateDataIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone3"},
+				"Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} },
+				{ "Key" : "Type", "Value" : "PrivateData3"},
+				{ "Key" : "Name", "Value" : {"Ref" : "AvailabilityZone3"}}]
+			}
+		},
+	
+		"PrivateDataRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [
+					{ "Key" : "Application", "Value" : { "Ref" : "AWS::StackId" } },
+					{ "Key" : "Network", "Value" : "PrivateData" }]
+				}
+		},
+ 
+		"PrivateDataSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateDataSubnet1", "PrivateDataRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateDataSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateDataRouteTable" }
+			}
+		},
+		
+		"PrivateDataSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateDataSubnet2", "PrivateDataRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateDataSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateDataRouteTable" }
+			}
+		},
+		
+		"PrivateDataSubnet3RouteTableAssociation" : {
+			"DependsOn" : ["AOPPrivateDataSubnet3", "PrivateDataRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "AOPPrivateDataSubnet3" },
+				"RouteTableId" : { "Ref" : "PrivateDataRouteTable" }
+			}
+		},
+		    
+		"NATIPAddress": {
+			"Type": "AWS::EC2::EIP",
+			"DependsOn": "GatewayToInternet",
+			"Properties": {
+				"Domain": "vpc",
+				"InstanceId": {"Ref": "NAT"}
+			}
+		},
+	
+		"NAT" : {
+			"DependsOn" : ["AOPPublicELBSubnet1", "NatSecurityGroup"],
+			"Type" : "AWS::EC2::Instance",
+			"Properties" : {
+				"InstanceType" : { "Ref" : "NATInstanceType"},
+				"KeyName" : { "Ref" : "KeyName" },
+				"SourceDestCheck" : "false",
+				"SubnetId" : { "Ref" : "AOPPublicELBSubnet1" },
+				"SecurityGroupIds": [{"Ref": "NatSecurityGroup"}],
+				"ImageId" : { "Fn::FindInMap" : [ "AWSRegion2AMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+				"Tags" : [
+					{ "Key" : "Name", "Value" : "NAT" },
+					{ "Key" : "Enviroment", "Value" : "EnvType"},
+					{ "Key" : "Application", "Value" : "VPC, Subnets and NAT"},
+					{ "Key" : "Platform", "Value" : "AOP"},
+					{ "Key" : "Owner", "Vaule" : "Martin Jasiczak"}
+				],
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"yum update -y && yum install -y yum-cron && chkconfig yum-cron on"
+				]]}}
+			}	
+		},	
+ 
+		"PrivateELBRoute" : {
+			"DependsOn" : ["PrivateELBRouteTable", "NAT"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PrivateELBRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"InstanceId" : { "Ref" : "NAT" }
+			}
+		}
+	}, 
+
+	"Outputs" : {
+		"URL" : {
+			"Value" : { "Fn::Join" : [ "", ["http://", { "Fn::GetAtt" : ["NAT", "PublicIp"] }]]},
+			"Description" : "Newly created application URL"
+		},
+		
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Value" : {"Ref" : "EnvType"}
+		},
+		
+		"InternetGatewayId" : {
+			"Description" : "Internet gateway Id",
+			"Value" : { "Ref" : "InternetGateway" }
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Value" : { "Ref" : "VPC" }
+		},
+		
+		"PublicELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PublicELB2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PublicELB3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateELB3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateELBIpBlocks"} ] }
+		},
+		
+		"PrivateApp1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateApp2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateApp3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateAppIpBlocks"} ] }
+		},
+		
+		"PrivateData1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+		
+		"PrivateData2CIDR" : {
+			"Description" : "Public ELB2 CIDR",
+			"Value" : { "Fn::Select" : [ "1", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+		
+		"PrivateData3CIDR" : {
+			"Description" : "Public ELB3 CIDR",
+			"Value" : { "Fn::Select" : [ "2", {"Ref" : "PrivateDataIpBlocks"} ] }
+		},
+			
+		"PrivateELBSubnet1" : {
+			"Description" : "Private ELB1 subnet ID.",
+			"Value" : { "Ref" : "AOPPrivateELBSubnet1" }
+		},
+		
+		"PrivateELBSubnet2" : {
+			"Description" : "Private ELB2 subnet ID.",
+			"Value" : { "Ref" : "AOPPrivateELBSubnet2" }
+		},
+		
+		"PrivateELBSubnet3" : {
+			"Description" : "Private ELB3 subnet ID.",
+			"Value" : { "Ref" : "AOPPrivateELBSubnet3" }
+		},
+		
+		"PublicELBSubnet1" : {
+			"Description" : "Public ELB Subnet",
+			"Value" : { "Ref" : "AOPPublicELBSubnet1" }
+		},
+		
+		"PublicELBSubnet2" : {
+			"Description" : "Public ELB2 Subnet",
+			"Value" : { "Ref" : "AOPPublicELBSubnet2" }
+		},
+		
+		"PublicELBSubnet3" : {
+			"Description" : "Public ELB3 Subnet",
+			"Value" : { "Ref" : "AOPPublicELBSubnet3" }
+		},
+		
+		"PrivateAppSubnet1" : {
+			"Description" : "Private App1 subnet",
+			"Value" : {"Ref" : "AOPPrivateAppSubnet1" }
+		},
+		
+		"PrivateAppSubnet2" : {
+			"Description" : "Private App2 subnet",
+			"Value" : {"Ref" : "AOPPrivateAppSubnet2" }
+		},
+		
+		"PrivateAppSubnet3" : {
+			"Description" : "Private App3 subnet",
+			"Value" : {"Ref" : "AOPPrivateAppSubnet3" }
+		},
+		
+		"PrivateDataSubnet1" : {
+			"Description" : "Private Data1 Subnet",
+			"Value" : { "Ref" : "AOPPrivateDataSubnet1" }
+		},
+		
+		"PrivateDataSubnet2" : {
+			"Description" : "Private Data2 Subnet",
+			"Value" : { "Ref" : "AOPPrivateDataSubnet2" }
+		},
+		
+		"PrivateDataSubnet3" : {
+			"Description" : "Private Data3 Subnet",
+			"Value" : { "Ref" : "AOPPrivateDataSubnet3" }
+		}
+	}
+}

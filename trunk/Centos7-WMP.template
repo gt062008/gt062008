@@ -1,0 +1,521 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script for Centos 7 WMP Test servers", 
+    "Mappings": {
+        "CUPSubnetConfig": {
+            "CAMFW": {
+                "CIDR": "192.153.213.50/32"
+            }, 
+            "CAMINT154": {
+                "CIDR": "131.111.154.0/24"
+            }, 
+            "CAMINT159": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "MANILLAFW1": {
+                "CIDR": "121.97.34.10/32"
+            }, 
+            "MANILLAFW2": {
+                "CIDR": "103.23.193.2/32"
+            }, 
+            "MANILLAFW3": {
+                "CIDR": "121.97.40.34/32"
+            }, 
+            "NYFW1": {
+                "CIDR": "38.105.193.36/32"
+            }, 
+            "NYFW2": {
+                "CIDR": "65.202.160.242/32"
+            }, 
+            "SINGAPOREFW": {
+                "CIDR": "122.152.164.42/32"
+            }
+        }, 
+        "VPCSubnetConfig": {
+            "PrivateApp": {
+                "CIDR": "10.10.19.16/28"
+            }, 
+            "PrivateDB": {
+                "CIDR": "10.10.19.32/28"
+            }, 
+            "PrivateDBB": {
+                "CIDR": "10.10.19.48/28"
+            }, 
+            "Public": {
+                "CIDR": "10.10.19.0/28"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.19.0/26"
+            }
+        }
+    }, 
+    "Outputs": {
+        "ServerExternalIP": {
+            "Description": "Server External IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppServer", 
+                    "PublicIp"
+                ]
+            }
+        }, 
+        "ServerInternalIP": {
+            "Description": "Server internal IP", 
+            "Value": {
+                "Fn::GetAtt": [
+                    "AppServer", 
+                    "PrivateIp"
+                ]
+            }
+        }
+    }, 
+    "Parameters": {
+        "AdminSG": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing Admin Server SG to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Ami": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of source AMI to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "AvailabilityZone": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of AZ to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "C5Password": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "none", 
+            "Description": "Password for checking out Concrete 5 content from svn", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Environment": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of WMP Environment", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "FilesImage": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Id of static files content data volume snapshot id to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "IamRole": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing IAM Role to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "LogsImage": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Id of log files data volume snapshot id to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "MongoImage": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Id of MongoDB data volume snapshot id to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "MySQLImage": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Id of MySQLDB data volume snapshot id to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "SSHKeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing SSH Keypair to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "SolrImage": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Id of Solr data volume snapshot id to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "Subnet": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing subnet to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "AppSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sg-4e849e22", 
+            "Description": "Name of existing Security Group for Dev Test Application server to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Default": "sng-joomla-key", 
+            "Description": "Name of existing VPC to use", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "AppIPAddress": {
+            "DependsOn": "AppServer", 
+            "Properties": {
+                "Domain": "vpc", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }
+            }, 
+            "Type": "AWS::EC2::EIP"
+        }, 
+        "AppServer": {
+            "DependsOn": [
+                "MongoVolume", 
+                "MySQLVolume", 
+                "SolrVolume", 
+                "FilesVolume", 
+                "LogsVolume"
+            ], 
+            "Properties": {
+                "IamInstanceProfile": {
+                    "Ref": "IamRole"
+                }, 
+                "ImageId": {
+                    "Ref": "Ami"
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "SSHKeyName"
+                }, 
+                "SecurityGroupIds": [
+                    {
+                        "Ref": "AppSecurityGroup"
+                    }
+                ], 
+                "SubnetId": {
+                    "Ref": "Subnet"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Platform", 
+                        "Value": "WMP"
+                    }, 
+                    {
+                        "Key": "Business", 
+                        "Value": "ELT"
+                    }, 
+                    {
+                        "Key": "Environment", 
+                        "Value": {
+                            "Ref": "Environment"
+                        }
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Nigel Green"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "EC2"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": {
+                            "Fn::Join": [
+                                " ", 
+                                [
+                                    "WMP test application server ", 
+                                    {
+                                        "Ref": "Environment"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/sbin/groupadd -g 501 maniladev", 
+                                "/usr/sbin/useradd -g maniladev -u 500 maniladev", 
+                                "/bin/mkdir -p /home/maniladev/.ssh", 
+                                "cd /home/maniladev/.ssh", 
+                                "echo 'maniladev ALL=(ALL) NOPASSWD:ALL' >>/etc/sudoers.d/90-cloud-init-users", 
+                                "/usr/bin/wget http://wmpfiles.aws.cambridge.org/newwmp.pub", 
+                                "/bin/mv newwmp.pub authorized_keys", 
+                                "/bin/chmod 700 /home/maniladev/.ssh", 
+                                "/bin/chmod 600 /home/maniladev/.ssh/authorized_keys", 
+                                "/bin/chown -R maniladev:maniladev /home/maniladev/", 
+                                "/bin/cp /etc/yum.repos.d/cup.repo /etc/yum.repos.d/wmprepo.repo", 
+                                "/bin/cp /etc/yum.repos.d/cup.repo /etc/yum.repos.d/mongo.repo", 
+                                "/bin/sed -i 's,cuprepo,wmprepo,g' /etc/yum.repos.d/wmprepo.repo", 
+                                "/bin/sed -i 's,Custom,WMP,g' /etc/yum.repos.d/wmprepo.repo", 
+                                "/bin/sed -i 's,cuprepo,mongodb,g' /etc/yum.repos.d/mongo.repo", 
+                                "/bin/sed -i 's,Custom,MongoDB,g' /etc/yum.repos.d/mongo.repo", 
+                                "echo 'gpgkey=https://www.mongodb.org/static/pgp/server-3.4.asc' >>/etc/yum.repos.d/mongo.repo",
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum check-update", 
+                                "/usr/bin/yum install -y httpd", 
+                                "/bin/systemctl enable httpd", 
+                                "/usr/bin/yum install -y --nogpgcheck mongodb-org", 
+                                "/bin/sed -i 's,SELINUX=enforcing,SELINUX=permissive,g' /etc/selinux/config", 
+                                "/usr/sbin/setenforce 0", 
+                                "cd /tmp", 
+                                "/usr/bin/wget http://rpms.famillecollet.com/enterprise/remi-release-7.rpm", 
+                                "/usr/bin/yum install -y epel-release", 
+                                "/usr/bin/yum clean all", 
+                                "/usr/bin/yum check-update", 
+                                "/bin/rpm -ivh remi-release-7.rpm", 
+                                "/bin/rm -f /tmp/remi-release-7.rpm", 
+                                "/usr/bin/yum install -y php56-php", 
+                                "/usr/bin/yum install -y php56-php-gd", 
+                                "/usr/bin/yum install -y php56-php-devel", 
+                                "/usr/bin/yum install -y php56-php-mbstring", 
+                                "/usr/bin/yum install -y php56-php-xml", 
+                                "/usr/bin/yum install -y php56-php-mcrypt", 
+                                "/usr/bin/yum install -y php56-php-mysqlnd", 
+                                "/usr/bin/yum install -y php56-php-soap", 
+                                "/usr/bin/yum install -y php56-php-intl", 
+                                "/usr/bin/yum install -y php56-php-pecl-apcu", 
+                                "/usr/bin/yum install -y java-1.8.0-openjdk", 
+                                "/bin/rm -f /usr/java/latest", 
+                                "/bin/ln -s /usr/lib/jvm/java-1.8.0-openjdk-1.8.0* /usr/java/latest", 
+                                "/usr/bin/yum install -y --nogpgcheck cup-apache-tomcat", 
+                                "/usr/bin/yum install -y --nogpgcheck cup-solr-6.2.0", 
+                                "/usr/bin/yum install -y subversion", 
+                                "/usr/bin/yum install -y mariadb-server", 
+                                "mkdir -p /data", 
+                                "echo '/dev/xvdf /data xfs defaults 0 0' >>/etc/fstab", 
+                                "/bin/mount /data", 
+                                "mkdir -p /data/mongo", 
+                                "echo '/dev/xvdh /data/mongo xfs defaults 0 0' >>/etc/fstab", 
+                                "/bin/mount /data/mongo", 
+                                "mkdir -p /data/httpd/wmp/files", 
+                                "echo '/dev/xvdj /data/httpd/wmp/files xfs defaults 0 0' >>/etc/fstab", 
+                                "/bin/mount /data/httpd/wmp/files", 
+                                "mkdir -p /data/solr", 
+                                "echo '/dev/xvdi /data/solr xfs defaults 0 0' >>/etc/fstab", 
+                                "/bin/mount /data/solr", 
+                                "/bin/chown -R tomcat:tomcat /data/solr", 
+                                "mkdir -p /data/logs", 
+                                "echo '/dev/xvdg /data/logs ext4 defaults 0 0' >>/etc/fstab", 
+                                "/bin/mount /data/logs", 
+                                "mkdir -p /data/logs/mongo", 
+                                "/bin/chown -R mongod:mongod /data/mongo /data/logs/mongo", 
+                                "/bin/rm -f /data/mongo/local.? /data/mongo/local.?? /data/mongo/mongod.lock", 
+                                "hostname=`hostname`", 
+                                "echo 127.0.0.1 $hostname >>/etc/hosts", 
+                                "/bin/systemctl enable mongod", 
+                                "/usr/bin/mongo <<EOT", 
+                                "use wmp;", 
+                                "rs.initiate();", 
+                                "exit;", 
+                                "EOT", 
+                                "/bin/chown -R mysql:mysql /data/mysql /data/logs/mysql", 
+                                "/bin/rm -f /data/mysql/ib_log*", 
+                                "/bin/systemctl enable mariadb", 
+                                "cd /data/httpd/wmp", 
+                                "svn co https://extsvn.cup.cam.ac.uk/repos/AcProPT/cambridge.org/web/trunk/marketing <<EOT", 
+                                "p", 
+                                "EOT", 
+                                "svn co https://extsvn.cup.cam.ac.uk/repos/AcProPT/cambridge.org/web/trunk/marketing <<EOT", 
+                                "", 
+                                "ec2deploy", 
+                                {
+                                    "Ref": "C5Password"
+                                }, 
+                                "no", 
+                                "EOT", 
+                                "/usr/bin/yum install -y puppet", 
+                                "/usr/bin/yum install -y mcollective", 
+                                "/bin/sed -n '1,12p' /etc/puppet/puppet.conf >/tmp/puppet.conf",
+                                "echo environment = newdevelopment >> /tmp/puppet.conf",
+                                "/bin/sed -n '12,$p' /etc/puppet/puppet.conf >>/tmp/puppet.conf",
+                                "/bin/mv -f /tmp/puppet.conf /etc/puppet/puppet.conf",
+                                "echo 192.168.30.59 puppet.aws.internal puppet >>/etc/hosts", 
+                                "/usr/bin/puppet agent -t --environment newdevelopment --verbose",
+                                "/bin/systemctl start mongod", 
+                                "/bin/systemctl start mariadb", 
+                                "/bin/systemctl start httpd",
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }, 
+        "FilesVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                }, 
+                "SnapshotId": {
+                    "Ref": "FilesImage"
+                }, 
+                "VolumeType": "gp2"
+            }, 
+            "Type": "AWS::EC2::Volume"
+        }, 
+        "FilesVolumeAttachment": {
+            "Properties": {
+                "Device": "/dev/sdj", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }, 
+                "VolumeId": {
+                    "Ref": "FilesVolume"
+                }
+            }, 
+            "Type": "AWS::EC2::VolumeAttachment"
+        }, 
+        "LogsVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                }, 
+                "SnapshotId": {
+                    "Ref": "LogsImage"
+                }, 
+                "VolumeType": "gp2"
+            }, 
+            "Type": "AWS::EC2::Volume"
+        }, 
+        "LogsVolumeAttachment": {
+            "Properties": {
+                "Device": "/dev/sdg", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }, 
+                "VolumeId": {
+                    "Ref": "LogsVolume"
+                }
+            }, 
+            "Type": "AWS::EC2::VolumeAttachment"
+        }, 
+        "MongoVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                }, 
+                "SnapshotId": {
+                    "Ref": "MongoImage"
+                }, 
+                "VolumeType": "gp2"
+            }, 
+            "Type": "AWS::EC2::Volume"
+        }, 
+        "MongoVolumeAttachment": {
+            "Properties": {
+                "Device": "/dev/sdh", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }, 
+                "VolumeId": {
+                    "Ref": "MongoVolume"
+                }
+            }, 
+            "Type": "AWS::EC2::VolumeAttachment"
+        }, 
+        "MySQLVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                }, 
+                "SnapshotId": {
+                    "Ref": "MySQLImage"
+                }, 
+                "VolumeType": "gp2"
+            }, 
+            "Type": "AWS::EC2::Volume"
+        }, 
+        "MySQLVolumeAttachment": {
+            "Properties": {
+                "Device": "/dev/sdf", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }, 
+                "VolumeId": {
+                    "Ref": "MySQLVolume"
+                }
+            }, 
+            "Type": "AWS::EC2::VolumeAttachment"
+        }, 
+        "SolrVolume": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Ref": "AvailabilityZone"
+                }, 
+                "SnapshotId": {
+                    "Ref": "SolrImage"
+                }, 
+                "VolumeType": "gp2"
+            }, 
+            "Type": "AWS::EC2::Volume"
+        }, 
+        "SolrVolumeAttachment": {
+            "Properties": {
+                "Device": "/dev/sdi", 
+                "InstanceId": {
+                    "Ref": "AppServer"
+                }, 
+                "VolumeId": {
+                    "Ref": "SolrVolume"
+                }
+            }, 
+            "Type": "AWS::EC2::VolumeAttachment"
+        }
+    }
+}

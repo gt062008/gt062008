@@ -1,0 +1,592 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "Cloudformation Network Stack",
+	"Parameters" : {
+
+		"HostName": {
+			"Description" : "Hub NAT Instance",
+			"Type": "String",
+			"Default" : "Hub-NAT"
+		},
+	
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "",
+			"Type" : "String"
+		},
+
+		"KeyName": {
+			"Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+			"Type": "AWS::EC2::KeyPair::KeyName",
+			"Default": "cup-infrastructure",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+		},
+
+		"AvailabilityZone2": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+		},
+
+		"NATInstanceType": {
+			"Description": "NET Device EC2 instance type",
+			"Type": "String",
+			"Default": "t2.small",
+			"AllowedValues": ["t2.micro", "t2.small", "t2.medium", "m4.large", "m4.xlarge", "m3.xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		
+		"VPCIpBlock" : {
+			"Description" : "CIDR for VPC",
+			"Type" : "String",
+			"Default" : "10.10.0.0/16"
+		},
+
+		"NumInstances" : {
+      		"Description" : "Number of instances to start initially",
+      		"Default" : "1",
+      		"Type" : "String"
+    	},
+
+    	"MinInstances" : {
+     		"Description" : "Minimum instances in the ASG",
+      		"Default" : "1",
+      		"Type" : "String"
+    	},
+
+    	"MaxInstances" : {
+      		"Description" : "Maximum instances in the ASG",
+      		"Default" : "1",
+      		"Type" : "String"
+    	},
+
+    		"MinHealthyInstances" : {
+      		"Description" : "Minimum instances in the ASG",
+      		"Default" : "1",
+      		"Type" : "String"
+    	},
+
+    	"MaxHealthyInstances" : {
+      		"Description" : "Maximum instances in the ASG",
+      		"Default" : "1",
+      		"Type" : "String"
+    	},
+			
+		"PublicAdminIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Public ELB",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"},
+
+		"PublicELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Public ELB",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"},
+
+		"PrivateAppIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private App",
+			"Type": "CommaDelimitedList",
+			"Default": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+		}
+	},
+
+	"Mappings" : {
+		
+		"AWSRegion2AMI" : {
+			"eu-west-1"	: { "AMI" : "ami-1aa0e76d"}
+		}
+	},
+
+	"Resources" : {
+
+		"VPC" : {
+			"Type" : "AWS::EC2::VPC",
+			"Properties" : {
+				"EnableDnsHostnames" : "True",
+				"EnableDnsSupport" : "True",
+				"CidrBlock" : { "Ref" : "VPCIpBlock"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : { "Fn::Join" : ["", [ { "Ref" : "EnvType" }, "-VPC" ] ] }
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "VPC"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}] 
+			}
+		},
+		
+		"VpnGroup" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "VPN Server security group",
+				"VpcId" : { "Ref" : "VPC"},
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" :  "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.157.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.111.159.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" :  "131.153.213.0/24" },
+					{ "IpProtocol" : "tcp", "FromPort" : "1194", "ToPort" : "1194", "CidrIp" :  "0.0.0.0/0" },				
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" :  "0.0.0.0/0" }
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "VPN Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "VPN Server security group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"NatSecurityGroup" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "NAT Security Group",
+				"VpcId" : { "Ref" : "VPC" },
+				"SecurityGroupIngress" : [
+					{ "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" :  { "Fn::Select" : [ "0", {"Ref" : "PublicAdminIpBlocks"} ]}},
+					{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Fn::Select" : [ "0", {"Ref" : "PublicAdminIpBlocks"} ]}}
+				],
+				        
+				"SecurityGroupEgress": [
+					{"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80","CidrIp": "0.0.0.0/0"}, 
+					{"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0"}
+				],
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Nat Security Group"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "NAT Security Group"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PublicElasticLoadBalancer" : {
+      		"Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      		"Properties" : {
+        		"SecurityGroups" : [ { "Ref" : "PublicLoadBalancerSecurityGroup" } ],
+        		"Subnets" : [ { "Ref" : "PublicELBSubnet1" } ],
+        		"Listeners" : [ { "LoadBalancerPort" : "80", "InstancePort" : "80", "Protocol" : "HTTP" } ],
+        		"HealthCheck" : {
+          			"Target" : "HTTP:80/",
+          			"HealthyThreshold" : "3",
+          			"UnhealthyThreshold" : "5",
+          			"Interval" : "90",
+          			"Timeout" : "60"
+        		}
+      		}
+    	},
+
+    	"PublicLoadBalancerSecurityGroup" : {
+      		"Type" : "AWS::EC2::SecurityGroup",
+      		"Properties" : {
+        		"GroupDescription" : "Public ELB Security Group with HTTP access on port 80 from the internet",
+        		"VpcId" : { "Ref" : "VPC" },
+        		"SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ],
+        		"SecurityGroupEgress" : [ { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"} ]
+      		}
+   	 	},
+
+		"PublicELBSubnet" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public ELB Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PublicAdminSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PublicAdminIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public Admin Subnet 1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public Admin Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"InternetGateway" : {
+			"Type" : "AWS::EC2::InternetGateway",
+			"Properties" : {
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "InternetGateway"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "InternetGateway"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"GatewayToInternet" : {
+			"DependsOn" : ["VPC", "InternetGateway"],
+			"Type" : "AWS::EC2::VPCGatewayAttachment",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"InternetGatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : {"Ref" : "VPC"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Public Route Table"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Public ELB RouteTable"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+
+		"PublicRoute" : {
+			"DependsOn" : ["PublicRouteTable", "InternetGateway"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PublicRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"GatewayId" : { "Ref" : "InternetGateway" }
+			}
+		},
+
+		"PublicELBSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PublicELBSubnet1", "PublicRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PublicELBSubnet1" },
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+
+		"PublicAdminSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PublicAdminSubnet1", "PublicRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PublicAdminSubnet1" },
+				"RouteTableId" : { "Ref" : "PublicRouteTable" }
+			}
+		},
+	
+		"PrivateRouteTable" : {
+			"DependsOn" : ["VPC"],
+			"Type" : "AWS::EC2::RouteTable",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private Route Table"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private RouteTable"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+ 		
+		"PrivateAppSubnet1" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "0", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone1"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private App Subnet1"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private App Subnet 1"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+		
+		"PrivateAppSubnet2" : {
+			"Type" : "AWS::EC2::Subnet",
+			"Properties" : {
+				"VpcId" : { "Ref" : "VPC" },
+				"CidrBlock" : { "Fn::Select" : [ "1", {"Ref" : "PrivateAppIpBlocks"} ] },
+				"AvailabilityZone": {"Ref" : "AvailabilityZone2"},
+				"Tags" : [ {
+				"Key" : "Name",
+					"Value" : "Private App Subnet2"
+				}, {
+					"Key" : "Hub_env",
+					"Value" : { "Ref" : "EnvType" }
+				}, {
+					"Key" : "Hub_role",
+					"Value" : "Private App Subnet 2"
+				}, {
+					"Key" : "Business",
+					"Value" : "Infra"
+				}, {
+					"Key" : "Platform",
+					"Value" : "INFRA"
+				}]
+			}
+		},
+ 
+		"PrivateAppSubnet1RouteTableAssociation" : {
+			"DependsOn" : ["PrivateAppSubnet1", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateAppSubnet1" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+		
+		"PrivateAppSubnet2RouteTableAssociation" : {
+			"DependsOn" : ["PrivateAppSubnet2", "PrivateRouteTable"],
+			"Type" : "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties" : {
+				"SubnetId" : { "Ref" : "PrivateAppSubnet2" },
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" }
+			}
+		},
+
+		"PrivateRoute" : {
+			"DependsOn" : ["PrivateRouteTable", "NAT"],
+			"Type" : "AWS::EC2::Route",
+			"Properties" : {
+				"RouteTableId" : { "Ref" : "PrivateRouteTable" },
+				"DestinationCidrBlock" : "0.0.0.0/0",
+				"InstanceId" : { "Ref" : "NAT" }
+			}
+		},
+
+		"NatServerGroup": {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"Properties" : {
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        		"MinSize" : { "Ref" : "MinInstances"},
+        		"MaxSize" : { "Ref" : "MaxInstances"},
+        		"DesiredCapacity" : { "Ref" : "NumInstances"},
+        		"Cooldown":"300",
+        		"HealthCheckType":"EC2",
+        		"HealthCheckGracePeriod":"300",
+				"VPCZoneIdentifier" : { "Ref" : "InstanceSubnets" },
+				"Tags" : [ {
+          			"Key" : "Name",
+        		  	"Value" : "Hub NAT",
+          			"PropagateAtLaunch" : "true"
+        		}, {
+          			"Key" : "hub_env",
+          			"Value" : { "Ref" : "EnvType" },
+          			"PropagateAtLaunch" : "true"
+        		}, {
+          			"Key" : "hub_role",
+          			"Value" : "NAT Server",
+          			"PropagateAtLaunch" : "true"
+        		}, {
+          			"Key" : "Business",
+          			"Value" : "Infra",
+          			"PropagateAtLaunch" : "true"
+        		}, {
+          			"Key" : "Platform",
+          			"Value" : "Infra",
+          			"PropagateAtLaunch" : "true"
+        		}]
+			},
+      		"UpdatePolicy" : {
+        		"AutoScalingScheduledAction" : {
+          			"IgnoreUnmodifiedGroupSizeProperties" : "true"
+        		},
+        		"AutoScalingRollingUpdate" : {
+           			"MinInstancesInService" : "1",
+           			"MaxBatchSize" : "1",
+           			"WaitOnResourceSignals" : "false",
+          	 		"PauseTime" : "PT5M"
+        		}
+      		}
+		},
+
+		"LaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+        		"AssociatePublicIpAddress" : "True",
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Ref" : "BaseAmi" },
+        		"IamInstanceProfile" : { "Fn::GetAtt" : [ "OperatorProfile", "Arn" ] },
+				"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+          			"IPADDR=`curl -s http://169.254.169.254/latest/meta-data/local-ipv4`",
+          			"DOMAIN=.",  { "Ref" : "DomainName" }, "\n",
+          			"HOSTNAME=", { "Ref" : "HostName" }, "-$INSTANCE\n",
+          			"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+          			"echo \"$IPADDR $HOSTNAME $HOSTNAME$DOMAIN\" >> /etc/hosts\n",
+					"hostnamectl set-hostname $HOSTNAME\n",
+          			"mount /dev/xvda2 /mnt\n",
+          			"dd if=/dev/zero of=/mnt/swapfile bs=1M count=1024\n",
+          			"chown root:root /mnt/swapfile\n",
+          			"chmod 600 /mnt/swapfile\n",
+          			"mkswap /mnt/swapfile\n",
+          			"swapon /mnt/swapfile\n"
+				]]}}, 
+				"SecurityGroups" : [ { "Ref" : "NATSecurityGroup" } ],
+				"InstanceType" : { "Ref" : "NATInstanceType" }
+			}
+		}
+	},
+
+	"Outputs" : {
+		"URL" : {
+			"Value" : { "Fn::Join" : [ "", ["http://", { "Fn::GetAtt" : ["NAT", "PublicIp"] }]]},
+			"Description" : "Newly created application URL"
+		},
+		
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Value" : {"Ref" : "EnvType"}
+		},
+		
+		"InternetGatewayId" : {
+			"Description" : "Internet gateway Id",
+			"Value" : { "Ref" : "InternetGateway" }
+		},
+		
+		"VpcId" : {
+			"Description" : "A VPC ID.",
+			"Value" : { "Ref" : "VPC" }
+		},
+		
+		"PublicELB1CIDR" : {
+			"Description" : "Public ELB1 CIDR",
+			"Value" : { "Fn::Select" : [ "0", {"Ref" : "PublicELBIpBlocks"} ] }
+		},
+
+		"PublicAdminSubnet1" : {
+			"Description" : "Public ELB Subnet",
+			"Value" : { "Ref" : "PublicELBSubnet1" }
+		},
+
+		"PrivateAppSubnet1" : {
+			"Description" : "Private App1 subnet",
+			"Value" : {"Ref" : "PrivateAppSubnet1" }
+		},
+		
+		"PrivateAppSubnet2" : {
+			"Description" : "Private App2 subnet",
+			"Value" : {"Ref" : "PrivateAppSubnet2" }
+		},
+
+		"VpnGroup" : {
+			"Description" : "VPN Server Security Group",
+			"Value" : { "Ref" : "VpnGroup"}
+		},
+		"NatSecurityGroup" : {
+			"Description" : "CI Builder Security Group",
+			"Value" : { "Ref" : "NatSecurityGroup"}
+		}
+	}
+}

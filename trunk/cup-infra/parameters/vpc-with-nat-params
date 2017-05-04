@@ -1,0 +1,38 @@
+
+[{
+	"ParameterKey": "EnvType",
+	"ParameterValue": "Hub"
+},
+{
+	"ParameterKey": "KeyName",
+	"ParameterValue": "cup-infrastructure"
+},
+{
+	"ParameterKey": "AvailabilityZone1",
+	"ParameterValue": "eu-west-1a"
+},
+{
+	"ParameterKey": "AvailabilityZone2",
+	"ParameterValue": "eu-west-1b"
+},
+{
+	"ParameterKey": "VPCIpBlock",
+	"ParameterValue": "10.10.0.0/16"
+},
+{
+	"ParameterKey": "PublicELBIpBlocks",
+	"ParameterValue": "10.10.200.0/26,10.10.200.64/26"
+},
+{
+	"ParameterKey": "PrivateWebIpBlocks",
+	"ParameterValue": "10.10.200.128/26,10.10.200.192/26"
+},
+{
+	"ParameterKey": "PrivateAppIpBlocks",
+	"ParameterValue": "10.10.201.0/26,10.10.201.64/26"
+},
+{
+	"ParameterKey": "PrivateDataIpBlocks",
+	"ParameterValue": "10.10.201.128/26,10.10.201.192/26"
+}
+]

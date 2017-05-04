@@ -1,0 +1,50 @@
+[
+	{
+		"ParameterKey": "EnvType",
+		"ParameterValue": "dev"
+	},
+	{
+		"ParameterKey": "KeyName",
+		"ParameterValue": "aopdev-ops"
+	},
+	{
+		"ParameterKey": "AvailabilityZone1",
+		"ParameterValue": "eu-west-1a"
+	},
+	{
+		"ParameterKey": "AvailabilityZone2",
+		"ParameterValue": "eu-west-1b"
+	},
+	{
+		"ParameterKey": "AvailabilityZone3",
+		"ParameterValue": "eu-west-1c"
+	},
+	{
+		"ParameterKey": "NATInstanceType",
+		"ParameterValue": "m1.small"
+	},
+	{
+		"ParameterKey": "VPCIpBlock",
+		"ParameterValue": "10.10.0.0/16"
+	},
+	{
+		"ParameterKey": "PublicELBIpBlocks",
+		"ParameterValue": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"
+	},
+	{
+		"ParameterKey": "PrivateELBIpBlocks",
+		"ParameterValue": "10.10.100.64/26, 10.10.101.64/26, 10.10.102.64/26"
+	},
+	{
+		"ParameterKey": "PrivateAppIpBlocks",
+		"ParameterValue": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+	},
+	{
+		"ParameterKey": "PrivateDataIpBlocks",
+		"ParameterValue": "10.10.100.192/26, 10.10.101.192/26, 10.10.102.192/26"
+	},
+	{
+		"ParameterKey": "PrivateServicesIpBlocks",
+		"ParameterValue": "10.10.99.0/26, 10.10.99.64/26, 10.10.99.128/26"
+	}
+]

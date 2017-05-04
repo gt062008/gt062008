@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "EnvType",
+    "ParameterValue": "adminprod"
+  },
+  {
+    "ParameterKey": "PublicELBIpBlocks",
+    "ParameterValue": "10.10.103.0/26, 10.10.104.0/26, 10.10.105.0/26"
+  },
+  {
+    "ParameterKey": "PrivateELBIpBlocks",
+    "ParameterValue": "10.10.103.64/26, 10.10.104.64/26, 10.10.105.64/26"
+  },
+  {
+    "ParameterKey": "PrivateAppIpBlocks",
+    "ParameterValue": "10.10.103.128/26, 10.10.104.128/26, 10.10.105.128/26"
+  },
+  {
+    "ParameterKey": "PrivateDataIpBlocks",
+    "ParameterValue": "10.10.103.192/26, 10.10.104.192/26, 10.10.105.192/26"
+  }
+]

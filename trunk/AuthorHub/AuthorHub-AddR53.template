@@ -1,0 +1,18 @@
+{
+    "Changes": [
+        {
+            "Action": "CREATE", 
+            "ResourceRecordSet": {
+                "Name": "authorhub-sftp.aws.cambridge.org.", 
+                "ResourceRecords": [
+                    {
+                        "Value": "IPADDRESS"
+                    }
+                ], 
+                "TTL": 300, 
+                "Type": "CNAME"
+            }
+        }
+    ], 
+    "Comment": "Create Route53 CNAME record to authorhub-sftp used by alliant app to upload royalties pdfs for ingestion"
+}

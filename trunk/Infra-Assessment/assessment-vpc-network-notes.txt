@@ -1,0 +1,8 @@
+Asessment VPC network notes
+
+10.10.19.64/26 (VPC) 64 IPs: (10.10.19.64 - 10.10.19.127)
+	broken up into 4 /28 subnets:
+		10.10.19.64/28 (10.10.19.64 - 10.10.19.79)	Public subnet
+		10.10.19.80/28 (10.10.19.80 - 10.10.19.95)	PrivateWeb subnet
+		10.10.19.96/28 (10.10.19.96 - 10.10.19.111)	PrivateDB subnet 
+		10.10.19.112/28 (10.10.19.112 - 10.10.19.127)	(PrivateDBB subnet)

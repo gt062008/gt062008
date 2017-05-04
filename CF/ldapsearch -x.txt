@@ -1,0 +1,1018 @@
+[root@ipa /]# ldapsearch -x
+# extended LDIF
+#
+# LDAPv3
+# base <dc=cde,dc=easyjet,dc=com> (default) with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# users, compat, cde.easyjet.com
+dn: cn=users,cn=compat,dc=cde,dc=easyjet,dc=com
+objectClass: extensibleObject
+cn: users
+
+# test, users, compat, cde.easyjet.com
+dn: uid=test,cn=users,cn=compat,dc=cde,dc=easyjet,dc=com
+cn: Test 123
+uidNumber: 304200004
+objectClass: posixAccount
+objectClass: ipaOverrideTarget
+objectClass: top
+gidNumber: 304200002
+gecos: Test 123
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206ZjhjODI3YWEtMTU0Yi0xMWU3LWE3N2QtMD
+ AwYzI5ZjA4Mjcx
+loginShell: /bin/sh
+homeDirectory: /home/test
+uid: test
+
+# muhammads, users, compat, cde.easyjet.com
+dn: uid=muhammads,cn=users,cn=compat,dc=cde,dc=easyjet,dc=com
+cn: muhammad shahzad
+uidNumber: 304200003
+objectClass: posixAccount
+objectClass: ipaOverrideTarget
+objectClass: top
+gidNumber: 304200000
+gecos: muhammad shahzad
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206ZmY1ZjYzYmUtMTU0NC0xMWU3LTgyZTItMD
+ AwYzI5ZjA4Mjcx
+loginShell: /bin/sh
+homeDirectory: /home/muhammads
+uid: muhammads
+
+# stuartn, users, compat, cde.easyjet.com
+dn: uid=stuartn,cn=users,cn=compat,dc=cde,dc=easyjet,dc=com
+cn: Stuart Nashed
+uidNumber: 304200001
+objectClass: posixAccount
+objectClass: ipaOverrideTarget
+objectClass: top
+gidNumber: 304200001
+gecos: Stuart Nashed
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206MGIxOTA3N2UtMTBhMy0xMWU3LWI3ZjUtMD
+ AwYzI5ZjA4Mjcx
+loginShell: /bin/sh
+homeDirectory: /home/stuartn
+uid: stuartn
+
+# admin, users, compat, cde.easyjet.com
+dn: uid=admin,cn=users,cn=compat,dc=cde,dc=easyjet,dc=com
+cn: Administrator
+uidNumber: 304200000
+objectClass: posixAccount
+objectClass: ipaOverrideTarget
+objectClass: top
+gidNumber: 304200000
+gecos: Administrator
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206MTFiMDg2ZTAtMTBhMS0xMWU3LWFlODctMD
+ AwYzI5ZjA4Mjcx
+loginShell: /bin/bash
+homeDirectory: /home/admin
+uid: admin
+
+# ng, compat, cde.easyjet.com
+dn: cn=ng,cn=compat,dc=cde,dc=easyjet,dc=com
+objectClass: extensibleObject
+cn: ng
+
+# groups, compat, cde.easyjet.com
+dn: cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+objectClass: extensibleObject
+cn: groups
+
+# test, groups, compat, cde.easyjet.com
+dn: cn=test,cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206ZjhkMTEwNDAtMTU0Yi0xMWU3LWE3N2QtMD
+ AwYzI5ZjA4Mjcx
+gidNumber: 304200004
+objectClass: posixGroup
+objectClass: ipaOverrideTarget
+objectClass: ipaexternalgroup
+objectClass: top
+cn: test
+
+# muhammads, groups, compat, cde.easyjet.com
+dn: cn=muhammads,cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206ZmY2ZmM0ZDQtMTU0NC0xMWU3LTgyZTItMD
+ AwYzI5ZjA4Mjcx
+gidNumber: 304200003
+objectClass: posixGroup
+objectClass: ipaOverrideTarget
+objectClass: ipaexternalgroup
+objectClass: top
+cn: muhammads
+
+# stuartn, groups, compat, cde.easyjet.com
+dn: cn=stuartn,cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206MGIzZjVhNzgtMTBhMy0xMWU3LWI3ZjUtMD
+ AwYzI5ZjA4Mjcx
+gidNumber: 304200001
+objectClass: posixGroup
+objectClass: ipaOverrideTarget
+objectClass: ipaexternalgroup
+objectClass: top
+cn: stuartn
+
+# editors, groups, compat, cde.easyjet.com
+dn: cn=editors,cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206MTFiNTkzZTItMTBhMS0xMWU3LTk5ZmEtMD
+ AwYzI5ZjA4Mjcx
+gidNumber: 304200002
+memberUid: stuartn
+objectClass: posixGroup
+objectClass: ipaOverrideTarget
+objectClass: ipaexternalgroup
+objectClass: top
+cn: editors
+
+# admins, groups, compat, cde.easyjet.com
+dn: cn=admins,cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+ipaAnchorUUID:: OklQQTpjZGUuZWFzeWpldC5jb206MTFiMzcwZTQtMTBhMS0xMWU3LWE2ZTItMD
+ AwYzI5ZjA4Mjcx
+gidNumber: 304200000
+memberUid: admin
+memberUid: stuartn
+memberUid: test
+objectClass: posixGroup
+objectClass: ipaOverrideTarget
+objectClass: ipaexternalgroup
+objectClass: top
+cn: admins
+
+# computers, compat, cde.easyjet.com
+dn: cn=computers,cn=compat,dc=cde,dc=easyjet,dc=com
+objectClass: extensibleObject
+cn: computers
+
+# sudoers, cde.easyjet.com
+dn: ou=sudoers,dc=cde,dc=easyjet,dc=com
+objectClass: extensibleObject
+ou: sudoers
+
+# cde.easyjet.com
+dn: dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: domain
+objectClass: pilotObject
+objectClass: nisDomainObject
+objectClass: domainRelatedObject
+dc: cde
+info: IPA V2.0
+nisDomain: cde.easyjet.com
+associatedDomain: cde.easyjet.com
+
+# accounts, cde.easyjet.com
+dn: cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: accounts
+
+# users, accounts, cde.easyjet.com
+dn: cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: users
+
+# groups, accounts, cde.easyjet.com
+dn: cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: groups
+
+# services, accounts, cde.easyjet.com
+dn: cn=services,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: services
+
+# computers, accounts, cde.easyjet.com
+dn: cn=computers,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: computers
+
+# hostgroups, accounts, cde.easyjet.com
+dn: cn=hostgroups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: hostgroups
+
+# alt, cde.easyjet.com
+dn: cn=alt,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: alt
+
+# ng, alt, cde.easyjet.com
+dn: cn=ng,cn=alt,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: ng
+
+# automount, cde.easyjet.com
+dn: cn=automount,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: automount
+
+# default, automount, cde.easyjet.com
+dn: cn=default,cn=automount,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: default
+
+# auto.master, default, automount, cde.easyjet.com
+dn: automountmapname=auto.master,cn=default,cn=automount,dc=cde,dc=easyjet,dc=
+ com
+objectClass: automountMap
+objectClass: top
+automountMapName: auto.master
+
+# auto.direct, default, automount, cde.easyjet.com
+dn: automountmapname=auto.direct,cn=default,cn=automount,dc=cde,dc=easyjet,dc=
+ com
+objectClass: automountMap
+objectClass: top
+automountMapName: auto.direct
+
+# /- auto.direct, auto.master, default, automount, cde.easyjet.com
+dn: description=/- auto.direct,automountmapname=auto.master,cn=default,cn=auto
+ mount,dc=cde,dc=easyjet,dc=com
+objectClass: automount
+objectClass: top
+automountKey: /-
+automountInformation: auto.direct
+description: /- auto.direct
+
+# hbac, cde.easyjet.com
+dn: cn=hbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: hbac
+
+# hbacservices, hbac, cde.easyjet.com
+dn: cn=hbacservices,cn=hbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: hbacservices
+
+# hbacservicegroups, hbac, cde.easyjet.com
+dn: cn=hbacservicegroups,cn=hbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: hbacservicegroups
+
+# sudo, cde.easyjet.com
+dn: cn=sudo,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: sudo
+
+# sudocmds, sudo, cde.easyjet.com
+dn: cn=sudocmds,cn=sudo,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: sudocmds
+
+# sudocmdgroups, sudo, cde.easyjet.com
+dn: cn=sudocmdgroups,cn=sudo,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: sudocmdgroups
+
+# sudorules, sudo, cde.easyjet.com
+dn: cn=sudorules,cn=sudo,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: sudorules
+
+# etc, cde.easyjet.com
+dn: cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: etc
+
+# locations, etc, cde.easyjet.com
+dn: cn=locations,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: locations
+
+# sysaccounts, etc, cde.easyjet.com
+dn: cn=sysaccounts,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: sysaccounts
+
+# ipa, etc, cde.easyjet.com
+dn: cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: ipa
+
+# replicas, ipa, etc, cde.easyjet.com
+dn: cn=replicas,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: replicas
+
+# dna, ipa, etc, cde.easyjet.com
+dn: cn=dna,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: dna
+
+# posix-ids, dna, ipa, etc, cde.easyjet.com
+dn: cn=posix-ids,cn=dna,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: posix-ids
+
+# ca_renewal, ipa, etc, cde.easyjet.com
+dn: cn=ca_renewal,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: ca_renewal
+
+# certificates, ipa, etc, cde.easyjet.com
+dn: cn=certificates,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: certificates
+
+# custodia, ipa, etc, cde.easyjet.com
+dn: cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: custodia
+
+# dogtag, custodia, ipa, etc, cde.easyjet.com
+dn: cn=dogtag,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: dogtag
+
+# s4u2proxy, etc, cde.easyjet.com
+dn: cn=s4u2proxy,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: s4u2proxy
+
+# admin, users, accounts, cde.easyjet.com
+dn: uid=admin,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: person
+objectClass: posixaccount
+objectClass: krbprincipalaux
+objectClass: krbticketpolicyaux
+objectClass: inetuser
+objectClass: ipaobject
+objectClass: ipasshuser
+objectClass: ipaSshGroupOfPubKeys
+uid: admin
+cn: Administrator
+sn: Administrator
+uidNumber: 304200000
+gidNumber: 304200000
+homeDirectory: /home/admin
+loginShell: /bin/bash
+gecos: Administrator
+
+# admins, groups, accounts, cde.easyjet.com
+dn: cn=admins,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: groupofnames
+objectClass: posixgroup
+objectClass: ipausergroup
+objectClass: ipaobject
+objectClass: nestedGroup
+cn: admins
+description: Account administrators group
+gidNumber: 304200000
+ipaUniqueID: 11b370e4-10a1-11e7-a6e2-000c29f08271
+
+# ipausers, groups, accounts, cde.easyjet.com
+dn: cn=ipausers,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: groupofnames
+objectClass: nestedgroup
+objectClass: ipausergroup
+objectClass: ipaobject
+description: Default group for all users
+cn: ipausers
+ipaUniqueID: 11b54892-10a1-11e7-8e5c-000c29f08271
+
+# editors, groups, accounts, cde.easyjet.com
+dn: cn=editors,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: groupofnames
+objectClass: posixgroup
+objectClass: ipausergroup
+objectClass: ipaobject
+objectClass: nestedGroup
+gidNumber: 304200002
+description: Limited admins who can edit other users
+cn: editors
+ipaUniqueID: 11b593e2-10a1-11e7-99fa-000c29f08271
+
+# ipaConfig, etc, cde.easyjet.com
+dn: cn=ipaConfig,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+objectClass: ipaGuiConfig
+objectClass: ipaConfigObject
+objectClass: ipaUserAuthTypeClass
+cn: ipaConfig
+
+# cosTemplates, accounts, cde.easyjet.com
+dn: cn=cosTemplates,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: cosTemplates
+
+# selinux, cde.easyjet.com
+dn: cn=selinux,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: selinux
+
+# usermap, selinux, cde.easyjet.com
+dn: cn=usermap,cn=selinux,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: usermap
+
+# ranges, etc, cde.easyjet.com
+dn: cn=ranges,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: ranges
+
+# ca, cde.easyjet.com
+dn: cn=ca,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: ca
+
+# certprofiles, ca, cde.easyjet.com
+dn: cn=certprofiles,cn=ca,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: certprofiles
+
+# caacls, ca, cde.easyjet.com
+dn: cn=caacls,cn=ca,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: caacls
+
+# cas, ca, cde.easyjet.com
+dn: cn=cas,cn=ca,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: cas
+
+# roles, accounts, cde.easyjet.com
+dn: cn=roles,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: roles
+
+# pbac, cde.easyjet.com
+dn: cn=pbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: pbac
+
+# privileges, pbac, cde.easyjet.com
+dn: cn=privileges,cn=pbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: privileges
+
+# permissions, pbac, cde.easyjet.com
+dn: cn=permissions,cn=pbac,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: permissions
+
+# virtual operations, etc, cde.easyjet.com
+dn: cn=virtual operations,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: virtual operations
+
+# Managed Entries, etc, cde.easyjet.com
+dn: cn=Managed Entries,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: Managed Entries
+
+# Templates, Managed Entries, etc, cde.easyjet.com
+dn: cn=Templates,cn=Managed Entries,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: Templates
+
+# Definitions, Managed Entries, etc, cde.easyjet.com
+dn: cn=Definitions,cn=Managed Entries,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: Definitions
+
+# automember, etc, cde.easyjet.com
+dn: cn=automember,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: automember
+
+# topology, ipa, etc, cde.easyjet.com
+dn: cn=topology,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+cn: topology
+
+# Domain Level, ipa, etc, cde.easyjet.com
+dn: cn=Domain Level,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: nsContainer
+objectClass: ipaDomainLevelConfig
+objectClass: ipaConfigObject
+cn: Domain Level
+
+# CAcert, ipa, etc, cde.easyjet.com
+dn: cn=CAcert,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: pkiCA
+objectClass: top
+cn: CAcert
+cACertificate;binary:: MIIDlzCCAn+gAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MRgwFgYDVQQ
+ KDA9DREUuRUFTWUpFVC5DT00xHjAcBgNVBAMMFUNlcnRpZmljYXRlIEF1dGhvcml0eTAeFw0xNzAz
+ MjQxNDUwNTBaFw0zNzAzMjQxNDUwNTBaMDoxGDAWBgNVBAoMD0NERS5FQVNZSkVULkNPTTEeMBwGA
+ 1UEAwwVQ2VydGlmaWNhdGUgQXV0aG9yaXR5MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQ
+ EA3KkhNXf7I81YGs1t++XaS8VZ58DHZbXuZTkjQvXbEku20VmqrRcPDUfr8/n1SZEd1YGZRhJTioe
+ FZDEK4DbCiEBQdx0PDCKPWUFsuqRQK2Slft+5d4B1X2E6X9Uk7BNCH5HOVq4pjotu+mgdgTm6IBj5
+ qza41a9op3UIaPRCBsbXl4yQrhKTy+CX1t0Ezr978LB0Dut6YQi6gSYSGvVsa6BL6uM9WEHIcNl8S
+ fDhgYO91ydrldTZq+qZpToIBlfuNr/oxt85w+2paoaGuftjQKLfcsvZAEmAKjtRoLbsOlOTAnNU1y
+ 7Y1sr3pJY4eZljZLhtKJd213oKCJqOGS4FtQIDAQABo4GnMIGkMB8GA1UdIwQYMBaAFDGSUqtquOR
+ cmxMqCitJ6aKOXBt7MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgHGMB0GA1UdDgQWBBQx
+ klKrarjkXJsTKgorSemijlwbezBBBggrBgEFBQcBAQQ1MDMwMQYIKwYBBQUHMAGGJWh0dHA6Ly9pc
+ GEtY2EuY2RlLmVhc3lqZXQuY29tL2NhL29jc3AwDQYJKoZIhvcNAQELBQADggEBANIBwO91xsm+q3
+ wmEEOrYxZrg/jfLo3EMDPcg0JA97T+8pcHWKoQONW71AvIc7TvRlHzmd0vCeYj5B17ZyQJI4s+9rm
+ YR+N8inC+3pWsc29v2iBUC8DQxRBK9oEqk5CkHUphkHbXa4OomDvgsTCqW+vsna8pZfJmVkRD3NiM
+ s7e6d3AGvjMlEFYjwOtcrXhBeU7c1iJ+91iAo0KepbnQW6nnlVo1+3xhFE43vpjoPHmkrnP5M/mTk
+ 1lwheZRG4Jdfp6If7HZlhJfrGY6DFIsnE7I4QSrUp702YwFrerZ7BciaG70kI9aRKeLGpdEtuDncd
+ lLdj7G/PnDoGe6l5c3IlI=
+
+# CDE.EASYJET.COM IPA CA, certificates, ipa, etc, cde.easyjet.com
+dn: cn=CDE.EASYJET.COM IPA CA,cn=certificates,cn=ipa,cn=etc,dc=cde,dc=easyjet,
+ dc=com
+ipaKeyExtUsage: 1.3.6.1.5.5.7.3.1
+ipaKeyExtUsage: 1.3.6.1.5.5.7.3.2
+ipaKeyExtUsage: 1.3.6.1.5.5.7.3.3
+ipaKeyExtUsage: 1.3.6.1.5.5.7.3.4
+cn: CDE.EASYJET.COM IPA CA
+objectClass: ipaCertificate
+objectClass: pkiCA
+objectClass: ipaKeyPolicy
+objectClass: top
+ipaCertSubject: CN=Certificate Authority,O=CDE.EASYJET.COM
+ipaPublicKey:: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3KkhNXf7I81YGs1t++X
+ aS8VZ58DHZbXuZTkjQvXbEku20VmqrRcPDUfr8/n1SZEd1YGZRhJTioeFZDEK4DbCiEBQdx0PDCKP
+ WUFsuqRQK2Slft+5d4B1X2E6X9Uk7BNCH5HOVq4pjotu+mgdgTm6IBj5qza41a9op3UIaPRCBsbXl
+ 4yQrhKTy+CX1t0Ezr978LB0Dut6YQi6gSYSGvVsa6BL6uM9WEHIcNl8SfDhgYO91ydrldTZq+qZpT
+ oIBlfuNr/oxt85w+2paoaGuftjQKLfcsvZAEmAKjtRoLbsOlOTAnNU1y7Y1sr3pJY4eZljZLhtKJd
+ 213oKCJqOGS4FtQIDAQAB
+cACertificate;binary:: MIIDlzCCAn+gAwIBAgIBATANBgkqhkiG9w0BAQsFADA6MRgwFgYDVQQ
+ KDA9DREUuRUFTWUpFVC5DT00xHjAcBgNVBAMMFUNlcnRpZmljYXRlIEF1dGhvcml0eTAeFw0xNzAz
+ MjQxNDUwNTBaFw0zNzAzMjQxNDUwNTBaMDoxGDAWBgNVBAoMD0NERS5FQVNZSkVULkNPTTEeMBwGA
+ 1UEAwwVQ2VydGlmaWNhdGUgQXV0aG9yaXR5MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQ
+ EA3KkhNXf7I81YGs1t++XaS8VZ58DHZbXuZTkjQvXbEku20VmqrRcPDUfr8/n1SZEd1YGZRhJTioe
+ FZDEK4DbCiEBQdx0PDCKPWUFsuqRQK2Slft+5d4B1X2E6X9Uk7BNCH5HOVq4pjotu+mgdgTm6IBj5
+ qza41a9op3UIaPRCBsbXl4yQrhKTy+CX1t0Ezr978LB0Dut6YQi6gSYSGvVsa6BL6uM9WEHIcNl8S
+ fDhgYO91ydrldTZq+qZpToIBlfuNr/oxt85w+2paoaGuftjQKLfcsvZAEmAKjtRoLbsOlOTAnNU1y
+ 7Y1sr3pJY4eZljZLhtKJd213oKCJqOGS4FtQIDAQABo4GnMIGkMB8GA1UdIwQYMBaAFDGSUqtquOR
+ cmxMqCitJ6aKOXBt7MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgHGMB0GA1UdDgQWBBQx
+ klKrarjkXJsTKgorSemijlwbezBBBggrBgEFBQcBAQQ1MDMwMQYIKwYBBQUHMAGGJWh0dHA6Ly9pc
+ GEtY2EuY2RlLmVhc3lqZXQuY29tL2NhL29jc3AwDQYJKoZIhvcNAQELBQADggEBANIBwO91xsm+q3
+ wmEEOrYxZrg/jfLo3EMDPcg0JA97T+8pcHWKoQONW71AvIc7TvRlHzmd0vCeYj5B17ZyQJI4s+9rm
+ YR+N8inC+3pWsc29v2iBUC8DQxRBK9oEqk5CkHUphkHbXa4OomDvgsTCqW+vsna8pZfJmVkRD3NiM
+ s7e6d3AGvjMlEFYjwOtcrXhBeU7c1iJ+91iAo0KepbnQW6nnlVo1+3xhFE43vpjoPHmkrnP5M/mTk
+ 1lwheZRG4Jdfp6If7HZlhJfrGY6DFIsnE7I4QSrUp702YwFrerZ7BciaG70kI9aRKeLGpdEtuDncd
+ lLdj7G/PnDoGe6l5c3IlI=
+ipaKeyTrust: trusted
+ipaCertIssuerSerial: CN=Certificate Authority,O=CDE.EASYJET.COM;1
+ipaConfigString: compatCA
+ipaConfigString: ipaCA
+
+# kerberos, cde.easyjet.com
+dn: cn=kerberos,dc=cde,dc=easyjet,dc=com
+objectClass: krbContainer
+objectClass: top
+cn: kerberos
+
+# CDE.EASYJET.COM, kerberos, cde.easyjet.com
+dn: cn=CDE.EASYJET.COM,cn=kerberos,dc=cde,dc=easyjet,dc=com
+cn: CDE.EASYJET.COM
+objectClass: top
+objectClass: krbrealmcontainer
+objectClass: krbticketpolicyaux
+
+# sig/ipa.cde.easyjet.com, dogtag, custodia, ipa, etc, cde.easyjet.com
+dn: cn=sig/ipa.cde.easyjet.com,cn=dogtag,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=e
+ asyjet,dc=com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: sig/ipa.cde.easyjet.com
+
+# enc/ipa.cde.easyjet.com, dogtag, custodia, ipa, etc, cde.easyjet.com
+dn: cn=enc/ipa.cde.easyjet.com,cn=dogtag,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=e
+ asyjet,dc=com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: enc/ipa.cde.easyjet.com
+
+# sig/ipa.cde.easyjet.com, custodia, ipa, etc, cde.easyjet.com
+dn: cn=sig/ipa.cde.easyjet.com,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=
+ com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: sig/ipa.cde.easyjet.com
+
+# enc/ipa.cde.easyjet.com, custodia, ipa, etc, cde.easyjet.com
+dn: cn=enc/ipa.cde.easyjet.com,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=
+ com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: enc/ipa.cde.easyjet.com
+
+# anonymous-limits, etc, cde.easyjet.com
+dn: cn=anonymous-limits,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: anonymous-limits
+
+# Kerberos Service Password Policy, CDE.EASYJET.COM, kerberos, cde.easyjet.com
+dn: cn=Kerberos Service Password Policy,cn=CDE.EASYJET.COM,cn=kerberos,dc=cde,
+ dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: Kerberos Service Password Policy
+
+# cosTemplates, computers, accounts, cde.easyjet.com
+dn: cn=cosTemplates,cn=computers,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: cosTemplates
+
+# cosTemplates, services, accounts, cde.easyjet.com
+dn: cn=cosTemplates,cn=services,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: cosTemplates
+
+# cosTemplates, CDE.EASYJET.COM, kerberos, cde.easyjet.com
+dn: cn=cosTemplates,cn=CDE.EASYJET.COM,cn=kerberos,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: cosTemplates
+
+# Default Password Policy, cosTemplates, CDE.EASYJET.COM, kerberos, cde.easyjet
+ .com
+dn: cn=Default Password Policy,cn=cosTemplates,cn=CDE.EASYJET.COM,cn=kerberos,
+ dc=cde,dc=easyjet,dc=com
+objectClass: cosTemplate
+objectClass: krbContainer
+objectClass: top
+objectClass: extensibleObject
+cn: Default Password Policy
+
+# profile, cde.easyjet.com
+dn: ou=profile,dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: profiles
+ou: profile
+
+# default, profile, cde.easyjet.com
+dn: cn=default,ou=profile,dc=cde,dc=easyjet,dc=com
+defaultServerList: ipa.cde.easyjet.com ipa02.cde.easyjet.com
+defaultSearchBase: dc=cde,dc=easyjet,dc=com
+objectClass: top
+objectClass: DUAConfigProfile
+serviceSearchDescriptor: passwd:cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+serviceSearchDescriptor: group:cn=groups,cn=compat,dc=cde,dc=easyjet,dc=com
+searchTimeLimit: 15
+followReferrals: TRUE
+objectclassMap: shadow:shadowAccount=posixAccount
+bindTimeLimit: 5
+authenticationMethod: none
+cn: default
+
+# provisioning, cde.easyjet.com
+dn: cn=provisioning,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: provisioning
+
+# accounts, provisioning, cde.easyjet.com
+dn: cn=accounts,cn=provisioning,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: accounts
+
+# staged users, accounts, provisioning, cde.easyjet.com
+dn: cn=staged users,cn=accounts,cn=provisioning,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: staged users
+
+# deleted users, accounts, provisioning, cde.easyjet.com
+dn: cn=deleted users,cn=accounts,cn=provisioning,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: deleted users
+
+# retrieve certificate, virtual operations, etc, cde.easyjet.com
+dn: cn=retrieve certificate,cn=virtual operations,cn=etc,dc=cde,dc=easyjet,dc=
+ com
+objectClass: nsContainer
+objectClass: top
+cn: retrieve certificate
+
+# request certificate, virtual operations, etc, cde.easyjet.com
+dn: cn=request certificate,cn=virtual operations,cn=etc,dc=cde,dc=easyjet,dc=c
+ om
+objectClass: nsContainer
+objectClass: top
+cn: request certificate
+
+# request certificate different host, virtual operations, etc, cde.easyjet.com
+dn: cn=request certificate different host,cn=virtual operations,cn=etc,dc=cde,
+ dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: request certificate different host
+
+# certificate status, virtual operations, etc, cde.easyjet.com
+dn: cn=certificate status,cn=virtual operations,cn=etc,dc=cde,dc=easyjet,dc=co
+ m
+objectClass: nsContainer
+objectClass: top
+cn: certificate status
+
+# revoke certificate, virtual operations, etc, cde.easyjet.com
+dn: cn=revoke certificate,cn=virtual operations,cn=etc,dc=cde,dc=easyjet,dc=co
+ m
+objectClass: nsContainer
+objectClass: top
+cn: revoke certificate
+
+# certificate remove hold, virtual operations, etc, cde.easyjet.com
+dn: cn=certificate remove hold,cn=virtual operations,cn=etc,dc=cde,dc=easyjet,
+ dc=com
+objectClass: nsContainer
+objectClass: top
+cn: certificate remove hold
+
+# request certificate with subjectaltname, virtual operations, etc, cde.easyjet
+ .com
+dn: cn=request certificate with subjectaltname,cn=virtual operations,cn=etc,dc
+ =cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: request certificate with subjectaltname
+
+# request certificate ignore caacl, virtual operations, etc, cde.easyjet.com
+dn: cn=request certificate ignore caacl,cn=virtual operations,cn=etc,dc=cde,dc
+ =easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: request certificate ignore caacl
+
+# otp, cde.easyjet.com
+dn: cn=otp,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: otp
+
+# radiusproxy, cde.easyjet.com
+dn: cn=radiusproxy,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: radiusproxy
+
+# Realm Domains, ipa, etc, cde.easyjet.com
+dn: cn=Realm Domains,cn=ipa,cn=etc,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+objectClass: domainRelatedObject
+cn: Realm Domains
+
+# trust admins, groups, accounts, cde.easyjet.com
+dn: cn=trust admins,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+cn: trust admins
+objectClass: top
+objectClass: ipaobject
+objectClass: groupofnames
+objectClass: ipausergroup
+objectClass: nestedgroup
+description: Trusts administrators group
+ipaUniqueID: 009319e4-10a2-11e7-8e93-000c29f08271
+
+# trusts, cde.easyjet.com
+dn: cn=trusts,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: trusts
+
+# views, accounts, cde.easyjet.com
+dn: cn=views,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: views
+
+# dns, cde.easyjet.com
+dn: cn=dns,dc=cde,dc=easyjet,dc=com
+objectClass: idnsConfigObject
+objectClass: nsContainer
+objectClass: ipaConfigObject
+objectClass: ipaDNSContainer
+objectClass: top
+cn: dns
+
+# servers, dns, cde.easyjet.com
+dn: cn=servers,cn=dns,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: servers
+
+# sec, dns, cde.easyjet.com
+dn: cn=sec,cn=dns,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: sec
+
+# keys, sec, dns, cde.easyjet.com
+dn: cn=keys,cn=sec,cn=dns,dc=cde,dc=easyjet,dc=com
+objectClass: nsContainer
+objectClass: top
+cn: keys
+
+# stuartn, users, accounts, cde.easyjet.com
+dn: uid=stuartn,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+displayName: Stuart Nashed
+uid: stuartn
+objectClass: ipaobject
+objectClass: person
+objectClass: top
+objectClass: ipasshuser
+objectClass: inetorgperson
+objectClass: organizationalperson
+objectClass: krbticketpolicyaux
+objectClass: krbprincipalaux
+objectClass: inetuser
+objectClass: posixaccount
+objectClass: ipaSshGroupOfPubKeys
+objectClass: mepOriginEntry
+objectClass: ipauserauthtypeclass
+loginShell: /bin/sh
+initials: SN
+gecos: Stuart Nashed
+sn: Nashed
+homeDirectory: /home/stuartn
+givenName: Stuart
+cn: Stuart Nashed
+uidNumber: 304200001
+gidNumber: 304200001
+
+# stuartn, groups, accounts, cde.easyjet.com
+dn: cn=stuartn,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: posixgroup
+objectClass: ipaobject
+objectClass: mepManagedEntry
+objectClass: top
+cn: stuartn
+gidNumber: 304200001
+description: User private group for stuartn
+mepManagedBy: uid=stuartn,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+ipaUniqueID: 0b3f5a78-10a3-11e7-b7f5-000c29f08271
+
+# muhammads, users, accounts, cde.easyjet.com
+dn: uid=muhammads,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+displayName: muhammad shahzad
+cn: muhammad shahzad
+objectClass: ipaobject
+objectClass: person
+objectClass: top
+objectClass: ipasshuser
+objectClass: inetorgperson
+objectClass: organizationalperson
+objectClass: krbticketpolicyaux
+objectClass: krbprincipalaux
+objectClass: inetuser
+objectClass: posixaccount
+objectClass: ipaSshGroupOfPubKeys
+objectClass: mepOriginEntry
+objectClass: ipauserauthtypeclass
+loginShell: /bin/sh
+initials: ms
+gidNumber: 304200000
+gecos: muhammad shahzad
+sn: shahzad
+homeDirectory: /home/muhammads
+uid: muhammads
+givenName: muhammad
+uidNumber: 304200003
+
+# muhammads, groups, accounts, cde.easyjet.com
+dn: cn=muhammads,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: posixgroup
+objectClass: ipaobject
+objectClass: mepManagedEntry
+objectClass: top
+cn: muhammads
+gidNumber: 304200003
+description: User private group for muhammads
+mepManagedBy: uid=muhammads,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+ipaUniqueID: ff6fc4d4-1544-11e7-82e2-000c29f08271
+
+# test, users, accounts, cde.easyjet.com
+dn: uid=test,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+displayName: Test 123
+cn: Test 123
+objectClass: ipaobject
+objectClass: person
+objectClass: top
+objectClass: ipasshuser
+objectClass: inetorgperson
+objectClass: organizationalperson
+objectClass: krbticketpolicyaux
+objectClass: krbprincipalaux
+objectClass: inetuser
+objectClass: posixaccount
+objectClass: ipaSshGroupOfPubKeys
+objectClass: mepOriginEntry
+objectClass: ipauserauthtypeclass
+loginShell: /bin/sh
+initials: T1
+gidNumber: 304200002
+gecos: Test 123
+sn: 123
+homeDirectory: /home/test
+uid: test
+givenName: Test
+uidNumber: 304200004
+
+# test, groups, accounts, cde.easyjet.com
+dn: cn=test,cn=groups,cn=accounts,dc=cde,dc=easyjet,dc=com
+objectClass: posixgroup
+objectClass: ipaobject
+objectClass: mepManagedEntry
+objectClass: top
+cn: test
+gidNumber: 304200004
+description: User private group for test
+mepManagedBy: uid=test,cn=users,cn=accounts,dc=cde,dc=easyjet,dc=com
+ipaUniqueID: f8d11040-154b-11e7-a77d-000c29f08271
+
+# sig/ipa02.cde.easyjet.com, custodia, ipa, etc, cde.easyjet.com
+dn: cn=sig/ipa02.cde.easyjet.com,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,d
+ c=com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: sig/ipa02.cde.easyjet.com
+
+# enc/ipa02.cde.easyjet.com, custodia, ipa, etc, cde.easyjet.com
+dn: cn=enc/ipa02.cde.easyjet.com,cn=custodia,cn=ipa,cn=etc,dc=cde,dc=easyjet,d
+ c=com
+objectClass: nsContainer
+objectClass: ipaKeyPolicy
+objectClass: ipaPublicKeyObject
+objectClass: groupOfPrincipals
+objectClass: top
+cn: enc/ipa02.cde.easyjet.com
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 118
+# numEntries: 117

@@ -1,0 +1,407 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "AWS CloudFormation Web Template. ELB + and DNS",
+
+	"Parameters": {
+	
+		"HostName": {
+			"Description" : "Base hostname for services",
+			"Type": "String",
+			"Default" : "Web"
+		},
+
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "clive.aws.cambridge.org"
+		},
+	
+		"EnvType" : {
+			"Description" : "Environment Type",
+			"Default" : "Dev",
+			"Type" : "String",
+			"AllowedValues" : ["Production", "Dev", "UAT", "Staging"],
+			"ConstraintDescription" : "must specify Production, Dev, UAT or Staging"
+		},
+
+		"appVersion" : {
+			"Description" : "Software version to install",
+			"Default" : "latest",
+			"Type" : "String"
+		},
+
+		"InstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "m3.medium",
+			"AllowedValues": [ "t2.micro", "t2.small", "t2.medium", "m3.medium", "m3.large", "m3.xlarge", "m3.xlarge", "m3.2xlarge", "c4.large", "c4.xlarge", "c4.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+
+		"NumInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+
+		"MinInstances" : {
+			"Description" : "Number of Min instances",
+			"Default" : "1",
+			"Type" : "String"
+		},
+
+		"MaxInstances" : {
+			"Description" : "Number of Max instances",
+			"Default" : "5",
+			"Type" : "String"
+		},
+
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to Hosts",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "255",
+			"AllowedPattern": "[\\x20-\\x7E]*",
+			"Default":"cup-infrastructure",
+			"ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+		},
+		
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Type": "String",
+			"Default" : "vpc-f2e46497"
+		},
+		
+		"InstanceSubnets" : {
+			"Type" : "CommaDelimitedList",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-600e7305, subnet-25345152"
+		},
+		
+		"DNSZoneId" : {
+			"Default" : "/hostedzone/Z3OTU08UN2UFD0",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String",
+			"AllowedValues" : ["/hostedzone/Z3OTU08UN2UFD0", "/hostedzone/ZWEBITPF5WUTE"]
+		},
+
+		"PublicloadBalancerSecGroup" : {
+			"Description" : "Public Load Balancer security group",
+			"Type" : "String",
+			"Default" : "sg-784d4d1d"
+		},
+
+		"MonitoringGroup" : {
+		  "Default" : "",
+		  "Description" : "Monitoring security group",
+		  "Type" : "String",
+		  "Default" : "sg-8b4c4cee"
+		},
+
+		"CiGroup" : {
+		  "Default" : "",
+		  "Description" : "CI builder security group",
+		  "Type" : "String",
+		  "Default" : "sg-954c4cf0"
+		},
+
+		"VpnGroup" : {
+		  "Default" : "",
+		  "Description" : "VPN server security group",
+		  "Type" : "String",
+		  "Default" : "sg-ae4c4ccb"
+		},
+
+		"BaseAmi" : {
+			"Default" : "ami-00e33a77",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		},
+	       
+		"OpsQueueARN" : {
+			"Description" : "Ops SQS Queue for notifications ARN",
+			"Default" : "ops-events",
+			"Type" : "String"
+		}
+		
+		
+	},
+	
+
+	"Resources": {
+	
+	"ecsRole": {
+       "Type": "AWS::IAM::Role",
+       "Properties": {
+          "AssumeRolePolicyDocument": {
+             "Version" : "2012-10-17",
+             "Statement": [ {
+                "Effect": "Allow",
+                "Principal": {
+                   "Service": [ "ec2.amazonaws.com" ]
+                },
+                "Action": [ "sts:AssumeRole" ]
+             } ]
+          },
+          "Path": "/wmp/application/"
+       }
+    },
+	
+	"ecsInstanceProfile": {
+       "Type": "AWS::IAM::InstanceProfile",
+       "Properties": {
+          "Path": "/wmp/application/",
+          "Roles": [ {
+             "Ref": "ecsRole"
+          } ]
+       }
+    },
+	
+	"PrivateELBSecurityGroup" : {
+			"Type" : "AWS::EC2::SecurityGroup",
+			"Properties" : {
+				"GroupDescription" : "Enable HTTP access on port 80",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress" : [ 
+					{ "IpProtocol" : "tcp", "FromPort" : "8080", "ToPort" : "8080", "SourceSecurityGroupId" : {"Ref" : "PublicloadBalancerSecGroup"} }
+				],
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["", [ { "Ref" : "HostName" }, "-elb-secgroup" ] ] }
+        }, {
+          "Key" : "aop_env",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "aop_role",
+          "Value" : { "Ref" : "HostName" }
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro"
+        }, {
+          "Key" : "Platform",
+          "Value" : "AOP"
+        }]
+			}
+		},
+		
+  		"InstanceSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Enable SSH access and HTTP access on the configured port",
+				"VpcId" : { "Ref" : "VPCId"},
+				"SecurityGroupIngress": [
+          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "MonitoringGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "VpnGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "VpnGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "MonitoringGroup" } },
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "CiGroup" } }
+				],
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "app-sg" ] ] }
+        }, {
+          "Key" : "Environment",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "Role",
+          "Value" : { "Ref" : "HostName" }
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro"
+        }, {
+          "Key" : "Platform",
+          "Value" : "WMP"
+        }]
+			}
+		},
+
+    
+		"WebServerGroup": {
+			"Type" : "AWS::AutoScaling::AutoScalingGroup",
+			"DependsOn" : "ElasticLoadBalancer",
+			"Properties" : {
+				"LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+        "MinSize" : { "Ref" : "MinInstances"},
+        "MaxSize" : { "Ref" : "MaxInstances"},
+        "DesiredCapacity" : { "Ref" : "NumInstances"},
+				"LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+				"VPCZoneIdentifier" : { "Ref" : "InstanceSubnets" },
+        
+				"Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "app" ] ] },
+          "PropagateAtLaunch" : "true"
+        }, {
+          "Key" : "Environment",
+          "Value" : { "Ref" : "EnvType" },
+          "PropagateAtLaunch" : "true"
+        }, {
+          "Key" : "Role",
+          "Value" : { "Ref" : "HostName" },
+          "PropagateAtLaunch" : "true"
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro",
+          "PropagateAtLaunch" : "true"
+        }, {
+          "Key" : "Platform",
+          "Value" : "WMP",
+          "PropagateAtLaunch" : "true"
+        }]
+			}
+		},
+
+		"LaunchConfig" : {
+			"Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Properties" : {
+				"KeyName" : { "Ref" : "KeyName" },
+				"ImageId" : { "Ref" : "BaseAmi" },
+        "BlockDeviceMappings" : [
+          {
+            "DeviceName" : "/dev/sdb",
+            "VirtualName" : "ephemeral0"
+          }     
+        ],
+        "IamInstanceProfile" : { "Fn::GetAtt" : [ "ecsInstanceProfile", "Arn" ] },
+				"UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash\n",
+					"INSTANCE=`curl -s http://169.254.169.254/latest/meta-data/instance-id`\n",
+          "DOMAIN=.",  { "Ref" : "DomainName" }, "\n",
+          "HOSTNAME=", { "Ref" : "HostName" }, "-$INSTANCE\n",
+					"echo \"$HOSTNAME$DOMAIN\" > /etc/hostname\n",
+					"if grep -q '7' /etc/redhat-release; then\n",
+					"  hostnamectl set-hostname $HOSTNAME\n",
+					"else\n",
+					"  hostname $HOSTNAME\n",
+					" sed -i -e \"s/^HOSTNAME=.*/HOSTNAME=$HOSTNAME$DOMAIN/\" /etc/sysconfig/network\n",
+          "fi\n",
+          "mount /dev/xvda2 /mnt\n",
+          "dd if=/dev/zero of=/mnt/swapfile bs=1M count=8192\n",
+          "chown root:root /mnt/swapfile\n",
+          "chmod 600 /mnt/swapfile\n",
+          "mkswap /mnt/swapfile\n",
+          "swapon /mnt/swapfile\n",
+          "swapon -a\n",
+					"puppet agent -t\n"
+				]]}}, 
+				"SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+				"InstanceType" : { "Ref" : "InstanceType" }
+			}
+		},
+		
+		"WebServerScaleUpPolicy" : {
+			"Type" : "AWS::AutoScaling::ScalingPolicy",
+			"Properties" : {
+				"AdjustmentType" : "ChangeInCapacity",
+				"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+				"Cooldown" : "60",
+				"ScalingAdjustment" : "1"
+			}
+		},
+		
+		"WebServerScaleDownPolicy" : {
+			"Type" : "AWS::AutoScaling::ScalingPolicy",
+			"Properties" : {
+				"AdjustmentType" : "ChangeInCapacity",
+				"AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+				"Cooldown" : "60",
+				"ScalingAdjustment" : "-1"
+			}
+		},
+
+		"CPUAlarmHigh": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-up if CPU > 90% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "90",
+				"AlarmActions": [ { "Ref": "WebServerScaleUpPolicy" } ],
+				"Dimensions": [{
+					"Name": "AutoScalingGroupName",
+					"Value": { "Ref": "WebServerGroup" }
+				}],
+				"ComparisonOperator": "GreaterThanThreshold"
+			}
+		},
+		
+		"CPUAlarmLow": {
+			"Type": "AWS::CloudWatch::Alarm",
+			"Properties": {
+				"AlarmDescription": "Scale-down if CPU < 70% for 10 minutes",
+				"MetricName": "CPUUtilization",
+				"Namespace": "AWS/EC2",
+				"Statistic": "Average",
+				"Period": "300",
+				"EvaluationPeriods": "2",
+				"Threshold": "70",
+				"AlarmActions": [ { "Ref": "WebServerScaleDownPolicy" } ],
+				"Dimensions": [{
+					"Name": "AutoScalingGroupName",
+					"Value": { "Ref": "WebServerGroup" }
+				}],
+				"ComparisonOperator": "LessThanThreshold"
+			}
+		},
+
+		"ElasticLoadBalancer": {
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Properties": {
+				"Subnets" : { "Ref" : "InstanceSubnets" },
+				"SecurityGroups" : [ { "Fn::GetAtt" : [ "PrivateELBSecurityGroup", "GroupId" ] } ],
+				"Listeners": [ {
+					"LoadBalancerPort": "8080",
+					"InstancePort": "8080",
+					"Protocol": "HTTP"
+				} ],
+				"HealthCheck": {
+					"Target": "HTTP:8080/",
+					"HealthyThreshold": "3",
+					"UnhealthyThreshold": "5",
+					"Interval": "20",
+					"Timeout": "5"
+				},
+				
+        "Tags" : [ {
+          "Key" : "Name",
+          "Value" : { "Fn::Join" : ["-", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, "app-elb" ] ] }
+        }, {
+          "Key" : "Environment",
+          "Value" : { "Ref" : "EnvType" }
+        }, {
+          "Key" : "Role",
+          "Value" : { "Ref" : "HostName" }
+        }, {
+          "Key" : "Business",
+          "Value" : "AcPro"
+        }, {
+          "Key" : "Platform",
+          "Value" : "WMP"
+        }]
+			}
+		},
+
+		"appHostname" : {
+      "Type" : "AWS::Route53::RecordSet",
+        "Properties" : {
+           "HostedZoneId" : { "Ref" : "DNSZoneId" },
+           "Comment" : "CNAME for app service ELB",
+           "Name" :  { "Fn::Join" : [ ".", [ "WMP", { "Ref" : "HostName" }, { "Ref" : "EnvType" }, { "Ref" : "DomainName"} ] ] },
+           "Type" : "CNAME",
+           "TTL" : "300",
+           "ResourceRecords" : [ { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ] } ]
+        }
+    }
+},
+
+	"Outputs": {
+		"URL": {
+			"Description": "URL of the website",
+			"Value": { "Fn::Join": [ "", [ "http://", { "Fn::GetAtt": [ "ElasticLoadBalancer", "DNSName" ] } ] ] }
+		}
+	}
+}

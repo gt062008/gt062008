@@ -1,0 +1,63 @@
+---
+- name: A simple Load Balanced AWS blog using the Amazon standard linux AMI
+  hosts: localhost
+  connection: local
+  gather_facts: False
+  tasks:
+    - name: spin up the webserver instances
+      ec2:
+        key_name: my-aws-key
+        group: web
+        instance_type: t2.micro
+        image: ami-f0091d91
+        region: us-west-2
+        wait: yes
+        instance_tags:
+           group: webservers
+        exact_count: 2
+        count_tag:
+           group: webservers
+      register: awsblog-webservers
+
+    - name: wait for the servers to appear on the network
+      wait_for: host={{ item.public_dns_name }} port=22 delay=10 timeout=180 state=started
+      with_items: awsblog-webservers.tagged_instances
+
+    - name: add server ip addresses to hosts group
+      add_host: hostname={{ item.public_ip }} groupname=launched
+      with_items: awsblog-webservers.tagged_instances
+
+- name: configure the webservers (simple little job just installs nginx and a hello world page)
+  hosts: launched
+  remote_user: ec2-user
+  sudo: True
+  gather_facts: True
+  roles:
+    - web
+
+- name: spin up the load balancer and add the servers to it
+  hosts: 127.0.0.1
+  connection: local
+  gather_facts: False
+  tasks:
+    - name: setup a simple load balancer
+      ec2_elb_lb:
+        name: aws-blog-elb
+        state: present
+        region: us-west-2
+        zones:
+          - us-west-2a
+        listeners:
+          - protocol: http
+            load_balancer_port: 80
+            instance_port: 80
+      register: awsblog-elb
+
+    - name: add the  webservers to the load balancer
+      local_action: ec2_elb
+      args:
+        instance_id: "{{ item.id }}"
+        ec2_elbs: aws-blog-elb
+        state: present
+        region: us-west-2
+      with_items: awsblog-webservers.tagged_instances

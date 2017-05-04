@@ -1,0 +1,34 @@
+
+[{
+	"ParameterKey": "HostName",
+	"ParameterValue": "ExternalELB"
+},
+{
+	"ParameterKey": "EnvType",
+	"ParameterValue": "Hub"
+},
+{
+	"ParameterKey": "AvailabilityZone",
+	"ParameterValue": "eu-west-1a"
+},
+{
+	"ParameterKey": "VPCId",
+	"ParameterValue": "vpc-3822415d"
+},
+{
+	"ParameterKey": "PublicSubnets",
+	"ParameterValue": "subnet-a26f3cc7"
+},
+{
+	"ParameterKey": "DomainName",
+	"ParameterValue": "infra.cambridge.org"
+},
+{
+	"ParameterKey": "DNSZoneId",
+	"ParameterValue": "Z38OEPT9Z8EZDM"
+},
+{
+	"ParameterKey": "CertificateARN",
+	"ParameterValue": "arn:aws:iam::220404863453:server-certificate/infra-hub-cert"
+}
+]

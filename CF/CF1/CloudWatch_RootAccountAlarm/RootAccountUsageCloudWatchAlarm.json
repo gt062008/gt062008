@@ -1,0 +1,59 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description" : "RootAccountUsage CloudWatch Alarm - BenPrudence 12/10/2016",
+  "Parameters" : {
+      "LogGroupName" : {
+          "Type" : "String",
+          "Default" : "CloudTrial/CloudWatchLogs",
+          "Description" : "Enter CloudWatch Logs log group name"
+      },
+      "Email" : {
+          "Type" : "String",
+          "Default" : "ITServiceDelivery-Infrastructure@easyjet.com",
+          "Description" : "Email address to notify when Root Account Usage has been identified"
+      }
+  },
+  "Resources" : {
+      "RootAccountUsageMetricFilter": {
+          "Type": "AWS::Logs::MetricFilter",
+          "Properties": {
+              "LogGroupName": { "Ref" : "LogGroupName" },
+              "FilterPattern": "{ $.userIdentity.type = Root && $.userIdentity.invokedBy NOT EXISTS && $.eventType != AwsServiceEvent }",
+              "MetricTransformations": [
+                  {
+                      "MetricNamespace": "CloudTrailMetrics",
+                      "MetricName": "RootAccountUsageCount",
+                      "MetricValue": "1"
+                  }
+              ]
+          }
+      },
+      "RootAccountUsageAlarm": {
+          "Type": "AWS::CloudWatch::Alarm",
+          "Properties": {
+              "AlarmName" : "RootAccountUsage",
+              "AlarmDescription" : "Root Account Usage Alarm",
+              "AlarmActions" : [{ "Ref" : "AlarmNotificationTopic" }],
+              "MetricName" : "RootAccountUsageCount",
+              "Namespace" : "CloudTrailMetrics",
+              "ComparisonOperator" : "GreaterThanOrEqualToThreshold",
+              "EvaluationPeriods" : "1",
+              "Period" : "300",
+              "Statistic" : "Sum",
+              "Threshold" : "1"
+          }
+      },
+
+	  "AlarmNotificationTopic": {
+          "Type": "AWS::SNS::Topic",
+          "Properties": {
+              "Subscription": [
+                  {
+                      "Endpoint": { "Ref": "Email" },
+                      "Protocol": "email"
+                  }
+              ]
+          }
+      }
+  }
+}

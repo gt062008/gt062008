@@ -1,0 +1,18 @@
+{
+    "Changes": [
+        {
+            "Action": "CREATE", 
+            "ResourceRecordSet": {
+                "Name": "new-wmp.aws.cambridge.org.", 
+                "ResourceRecords": [
+                    {
+                        "Value": "192.168.35.48"
+                    }
+                ], 
+                "TTL": 300, 
+                "Type": "A"
+            }
+        }
+    ], 
+    "Comment": "Create Route53 A record to new-wmp used by developers after new EC2 instance creation"
+}

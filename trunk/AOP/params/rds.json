@@ -1,0 +1,61 @@
+[
+  {
+    "ParameterKey": "HostName",
+    "ParameterValue": "AOP-Mysql"
+  },
+  {
+    "ParameterKey": "DomainName",
+    "ParameterValue": "aop.cambridge.org"
+  },
+  {
+    "ParameterKey": "DNSZoneId",
+    "ParameterValue": "/hostedzone/Z24DM7IXHGSU76"
+  },
+  {
+    "ParameterKey": "EnvType",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "DBUser",
+    "ParameterValue": "aoproot"
+  },
+  {
+    "ParameterKey": "DBPassword",
+    "ParameterValue": "lemon(car(crazy"
+  },
+
+  {
+    "ParameterKey": "DBStorage",
+    "ParameterValue": "100"
+  },
+
+  {
+    "ParameterKey": "DatabaseInstanceClass",
+    "ParameterValue": "db.t2.medium"
+  },
+
+  {
+    "ParameterKey": "VPCId",
+    "ParameterValue": "vpc-273cd342"
+  },
+  {
+    "ParameterKey": "PrivateDataSubnets",
+    "ParameterValue": "subnet-b4fafbf2, subnet-a840e8cd, subnet-47289230"
+  },
+  {
+    "ParameterKey": "PrivateAppIpBlocks",
+    "ParameterValue": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+  },
+  {
+    "ParameterKey": "MonitoringGroup",
+    "ParameterValue": "sg-e653ff83"
+  },
+  {
+    "ParameterKey": "CiGroup",
+    "ParameterValue": "sg-9027e9f5"
+  },
+  {
+    "ParameterKey": "VpnGroup",
+    "ParameterValue": "sg-c7bc7ea2"
+  }
+]

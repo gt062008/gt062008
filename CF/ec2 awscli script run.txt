@@ -1,0 +1,10 @@
+EC2 AWSCLi scripts
+Information
+These scripts have been designed with a configured AWSCLi profile. You will need to change this profile name in the local script.
+List Instances in all Regions
+listinstances_allregions.sh
+This script lists all the Instances in an AWS account. It will only output the InstanceId, VpcId and Name Tag.
+ENSURE TO CHANGE PROFILE VARIABLE!
+PROFILE="Profile_Name"
+TO EDIT THE OUTPUT DATA EDIT THE --QUERY STRING
+--query 'Reserverations[].Instances[].[query details]'

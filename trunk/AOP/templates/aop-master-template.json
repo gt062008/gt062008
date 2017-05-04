@@ -1,0 +1,471 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+
+	"Description": "Provisions multiple substacks",
+
+	"Parameters": {
+		"EnvType" : {
+			"Description" : "Enviroment Type",
+			"Default" : "staging",
+			"Type" : "String",
+			"AllowedValues" : ["prod", "dev", "qa", "staging"],
+			"ConstraintDescription" : "must specify prod, dev, staging or qa"
+		},
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to Hosts",
+			"Default" : "",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "255",
+			"AllowedPattern": "[\\x20-\\x7E]*",
+			"Default":"aopdev-ops",
+			"ConstraintDescription": "can contain only ASCII characters."
+		},
+		"DNSZoneId" : {
+			"Default" : "/hostedzone/Z24DM7IXHGSU76",
+			"Description" : "ZoneId of our Route53 DNS",
+			"Type" : "String",
+			"AllowedValues" : ["/hostedzone/Z3LZDTQKNP5I6F", "/hostedzone/Z24DM7IXHGSU76"]
+		},
+		"DomainName": {
+			"Description" : "Base domain name",
+			"Type": "String",
+			"Default" : "aop.cambridge.org"
+		},
+		"VPCId" : {
+			"Description" : "A VPC ID.",
+			"Type": "String",
+			"Default" : "vpc-273cd342"
+		},
+		"LoggingBucket" : {
+			"Description" : "Name of the shared logging bucket",
+			"Type" : "String",
+			"Default" : "elblogs-aop",
+			"AllowedValues" : ["shared-prod-s3-elb-logs", "elblogs-aop"]
+		},
+		"CertificateARN" : {
+			"Description" : "Certificate to use to encrypt HTTPS traffic",
+			"Type" : "String",
+			"Default" : "arn:aws:iam::291050698310:server-certificate/integration-cert"
+		},
+		"NATInstanceType": {
+			"Description": "NAT Device EC2 instance type",
+			"Type": "String",
+			"Default": "m1.small",
+			"AllowedValues": ["t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		"AvailabilityZone1": {
+			"Description": "One of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1a",
+			"MinLength": "1",
+			"MaxLength": "255"
+		},
+		"AvailabilityZone2": {
+			"Description": "Two of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1b",
+			"MinLength": "1",
+			"MaxLength": "255"
+		},
+		"AvailabilityZone3": {
+			"Description": "Three of three Availability Zones that will be used to create subnets.",
+		    "Type" : "String",
+			"Default" : "eu-west-1c",
+			"MinLength": "1",
+			"MaxLength": "255"
+		},
+		"VPCIpBlock" : {
+			"Description" : "CIDR for VPC",
+			"Type" : "String",
+			"Default" : "10.10.0.0/16"
+		}, 			
+		"PublicELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Public ELB",
+			"Type": "String",
+			"Default": "10.10.100.0/26, 10.10.101.0/26, 10.10.102.0/26"
+		},
+		"PrivateELBIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private ELB",
+			"Type": "String",
+			"Default": "10.10.100.64/26, 10.10.101.64/26, 10.10.102.64/26"
+		},
+		"PrivateAppIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private App",
+			"Type": "String",
+			"Default": "10.10.100.128/26, 10.10.101.128/26, 10.10.102.128/26"
+		},
+		"PrivateDataIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private Data",
+			"Type": "String",
+			"Default": "10.10.100.192/26, 10.10.101.192/26, 10.10.102.192/26"
+		},
+		"PrivateServicesIpBlocks": {
+			"Description": "Comma-delimited list of three CIDR blocks for Private Services",
+			"Type": "String",
+			"Default": "10.10.99.0/26, 10.10.99.64/26, 10.10.99.128/26"
+		},
+		"PublicELBSubnets" : {
+			"Type" : "String",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-a1fafbe7, subnet-954fe7f0, subnet-8c2b91fb"
+		},
+		"PrivateELBSubnets" : {
+			"Type" : "String",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-b76fc0ee, subnet-6e65080b, subnet-a33fb5d4"
+		},
+		"PrivateAppSubnets" : {
+			"Type" : "String",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-adfafbeb, subnet-3f40e85a, subnet-64289213"
+		},
+		"PrivateDataSubnets" : {
+			"Type" : "String",
+			"Description" : "List of deployment subnets",
+			"Default" : "subnet-b4fafbf2, subnet-a840e8cd, subnet-47289230"
+		},
+		"MonitoringSecGroup" : {
+			"Description" : "Monitoring security group",
+			"Type" : "String",
+			"Default" : "sg-e653ff83"
+		},
+		"VPNSecGroup" : {
+			"Description" : "VPN Security Group",
+			"Type" : "String",
+			"Default" : "sg-e5c3e780"
+		},
+		"CISecGroup" : {
+			"Description" : "CI Builder Security Group",
+			"Type" : "String",
+			"Default" : "sg-d0431cb5"
+		},
+		"RDSDatabaseUser": {
+			"NoEcho": "true",
+			"Type": "String",
+			"Description": "Database admin account name",
+			"MinLength": "1",
+			"MaxLength": "16",
+			"AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+			"Default":"aoproot",
+			"ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+		},
+		"RDSDatabasePassword": {
+		  "NoEcho": "true",
+		  "Type": "String",
+		  "Description": "Database admin account password",
+		  "MinLength": "1",
+		  "MaxLength": "41",
+		  "Default":"apple"
+		},
+		"RDSDatabaseName": {
+		  "Description": "The name of the database",
+		  "Type": "String",
+		  "Default": "aopstaging"
+		},
+		"RDSDBStorage" : {
+			"Description" : "The database Allocated Storage",
+			"Type" : "Number",
+			"Default" : "100"
+		},
+		"RDSDatabaseInstanceClass" : {
+			"Description" : "The class of RDS instance",
+			"Type" : "String",
+			"Default" : "db.t2.medium",
+			"AllowedValues" : ["db.t2.micro", "db.t2.small", "db.t2.medium", "db.m3.medium", "db.m3.large", "db.m3.2xlarge", "db.r3.large", "db.r3.2xlarge", "db.r3.4xlarge"]
+		},
+		"MarkLogicAdminUser" : {
+			"Description" : "Admin user account for MarkLogic",
+			"Type" : "String",
+			"Default" : "admin"
+		},
+		"MarkLogicAdminPass":{
+			"Description":"The MarkLogic Administrator Password",
+			"Type":"String",
+			"NoEcho":"true",
+			"Default" : "cherry<bus<flying"
+		},
+		"MarkLogicInstanceType":{
+			"Description":"Type of EC2 instance to launch",
+			"Type":"String",
+			"Default":"m3.medium",
+			"AllowedValues":["m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","m3.medium","m3.large","m3.xlarge","m3.2xlarge"]
+		},
+		"Licensee":{
+			"Description":"The MarkLogic Licensee or 'none'",
+			"Type":"String",
+			"Default":"Cambridge University Press - Test"
+		},
+		"LicenseKey":{
+			"Description":"The MarkLogic License Key or 'none'",
+			"Type":"String",
+			"Default":"308D-6C44-6023-F93E-68D6-C636-C1BE-8DAC-2664-3BF8-58C0-4622-FDCE-8A20"
+		},
+		"MarkLogicNodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"1",
+			"MaxValue":"20",
+			"Default":"1"
+		},
+		"MarkLogicVolumeSize":{
+			"Description":"The EBS Data volume size (GB) for all nodes",
+			"Type":"Number",
+			"MinValue":"10",
+			"MaxValue":"1000",
+			"Default":"100"
+		},
+		"MarkLogicBaseAmi" : {
+			"Default" : "ami-65a13712",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		},
+		"AppBaseAmi" : {
+			"Default" : "ami-6f7e1e18",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		},
+		"InstanceType": {
+		  "Description": "The type of instance to use for EB servers",
+		  "Type": "String",
+		  "Default": "t1.micro",
+		  "AllowedValues": ["t1.micro", "m1.small", "m1.medium", "m1.large"]
+		},
+		"AppInstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "t2.medium",
+			"AllowedValues": [ "t2.micro", "t2.small", "t2.medium", "m3.medium", "m3.large", "m3.xlarge", "m3.xlarge", "m3.2xlarge", "c4.large", "c4.xlarge", "c4.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},	
+		"MongoInstanceType": {
+			"Description": "WebServer EC2 instance type",
+			"Type": "String",
+			"Default": "t2.medium",
+			"AllowedValues": [ "t2.micro", "t2.small", "t2.medium", "m3.medium", "m3.large", "m3.xlarge", "m3.xlarge", "m3.2xlarge"],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		"MongoVolumeSize" : {
+			"Description" : "Size of EBS Volume",
+			"Type" : "Number",
+			"Default" : "100"
+		},
+		"MongoBaseAmi" : {
+			"Default" : "ami-5f3f5d28",
+			"Description" : "Base AMI for instances",
+			"Type" : "String"
+		},
+		"MongoNodesPerZone":{
+			"Description":"Total number of nodes per Zone. (3 zones). Set to 0 to shutdown/hibernate",
+			"Type":"Number",
+			"MinValue":"1",
+			"MaxValue":"1",
+			"Default":"1"
+		},
+		"AppNumInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+		"ecsMinInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+		"ecsMaxInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+		"idmMinInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+		"idmMaxInstances" : {
+			"Description" : "Number of instances to start initially",
+			"Default" : "2",
+			"Type" : "String"
+		},
+		"OpsQueueARN" : {
+			"Description" : "Ops SQS Queue for notifications ARN",
+			"Default" : "arn:aws:sqs:eu-west-1:291050698310:staging-ops-events",
+			"Type" : "String"
+		}
+	},
+
+	"Resources": {
+				
+		"ExternalELB" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-elb-template.json",
+				"Parameters" : {
+					"EnvType" : { "Ref" : "EnvType"},
+					"VPCId" : { "Ref" : "VPCId" },
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"PublicSubnets" : { "Ref" : "PublicELBSubnets" },
+					"LoggingBucket" : { "Ref" : "LoggingBucket"},
+					"CertificateARN" : { "Ref" : "CertificateARN"}
+				}
+			}
+		},
+		"IDMResources" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-idm-resources-template.json",
+				"Parameters" : {
+					"EnvType" : { "Ref" : "EnvType"},
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" }
+				}
+			}
+		},
+		"IDM" : {
+			"DependsOn" : "IDMResources",
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-idm-template.json",
+				"Parameters" : {
+					"EnvType" : { "Ref" : "EnvType"},
+					"KeyName": { "Ref" : "KeyName" },
+					"VPCId" : { "Ref" : "VPCId" },
+					"InstanceSubnets" : { "Ref" : "PrivateAppSubnets" },
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"PublicloadBalancerSecGroup" : {"Fn::GetAtt" : ["ExternalELB", "Outputs.PublicELBSecurityGroup"]},
+					"MonitoringGroup" : { "Ref" : "MonitoringSecGroup" },
+					"CiGroup" : { "Ref" : "CISecGroup" },
+					"VpnGroup" : { "Ref" : "VPNSecGroup" },
+					"BaseAmi" : { "Ref" : "AppBaseAmi"},
+					"idmBucketURL" : {"Fn::GetAtt" : ["IDMResources", "Outputs.idmBucketDomainName"]},
+					"idmBucketDomainName" : {"Fn::GetAtt" : ["IDMResources", "Outputs.idmBucketName"]},
+					"LoggingBucket" : { "Ref" : "LoggingBucket"},
+					"OpsQueueARN" : { "Ref" : "OpsQueueARN"},
+					"NumInstances" : { "Ref" : "AppNumInstances"},
+					"InstanceType" : { "Ref" : "AppInstanceType"}
+				}
+			}
+		},
+		"ECSResources" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-ecs-resources-template.json",
+				"Parameters" : {
+					"EnvType" : { "Ref" : "EnvType"},
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"OpsQueueARN" : { "Ref" : "OpsQueueARN"}
+				}
+			}
+		},
+		"ECS" : {
+			"DependsOn" : "IDMResources",
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-ecs-template.json",
+				"Parameters" : {
+					"EnvType" : { "Ref" : "EnvType"},
+					"KeyName": { "Ref" : "KeyName" },
+					"VPCId" : { "Ref" : "VPCId" },
+					"InstanceSubnets" : { "Ref" : "PrivateAppSubnets" },
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"PublicloadBalancerSecGroup" : {"Fn::GetAtt" : ["ExternalELB", "Outputs.PublicELBSecurityGroup"]},
+					"MonitoringGroup" : { "Ref" : "MonitoringSecGroup" },
+					"CiGroup" : { "Ref" : "CISecGroup" },
+					"VpnGroup" : { "Ref" : "VPNSecGroup" },
+					"BaseAmi" : { "Ref" : "AppBaseAmi"},
+					"LoggingBucket" : { "Ref" : "LoggingBucket"},
+					"OpsQueueARN" : { "Ref" : "OpsQueueARN"},
+					"NumInstances" : { "Ref" : "AppNumInstances"},
+					"InstanceType" : { "Ref" : "AppInstanceType"},
+					"ecsBucketURL" : {"Fn::GetAtt" : ["ECSResources", "Outputs.ecsBucketURL"]},
+					"ecsBucketName" : {"Fn::GetAtt" : ["ECSResources", "Outputs.ecsBucketName"]},
+					"ecsQueueArn" : {"Fn::GetAtt" : ["ECSResources", "Outputs.ecsQueueArn"]},
+					"ecsQueueURL" : {"Fn::GetAtt" : ["ECSResources", "Outputs.ecsQueueName"]}
+				}
+			}
+		},
+		"MarkLogic" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-ml-template.json",
+				"Parameters" : {
+					"VPCId" : { "Ref" : "VPCId" },
+					"DomainName" : { "Ref" : "DomainName" },
+					"EnvType" : { "Ref" : "EnvType"},
+					"KeyName": { "Ref" : "KeyName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"Licensee" : { "Ref" : "Licensee" },
+					"LicenseKey" : { "Ref" : "LicenseKey" },
+					"NodesPerZone" : { "Ref" : "MarkLogicNodesPerZone" },
+					"VolumeSize" : { "Ref" : "MarkLogicVolumeSize" },
+					"PrivateDataSubnets" : { "Ref" : "PrivateDataSubnets" },
+					"PublicloadBalancerSecGroup" : {"Fn::GetAtt" : ["ExternalELB", "Outputs.PublicELBSecurityGroup"]},
+					"LoggingBucket" : { "Ref" : "LoggingBucket"},
+					"AdminUser" : {"Ref" : "MarkLogicAdminUser"},
+					"AdminPass" : {"Ref" : "MarkLogicAdminPass"},
+					"InstanceType" : { "Ref" : "MarkLogicInstanceType"},
+					"BaseAmi" : {"Ref" : "MarkLogicBaseAmi"},
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1"},
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2"},
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3"},
+					"PrivateAppIpBlocks" : {"Ref" : "PrivateAppIpBlocks"},
+					"MonitoringSecGroup" : { "Ref" : "MonitoringSecGroup" },
+					"CISecGroup" : { "Ref" : "CISecGroup" },
+					"VPNSecGroup" : { "Ref" : "VPNSecGroup" }
+				}
+			}
+		},
+		"RDS" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-rds-template.json",
+				"Parameters" : {
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"EnvType" : { "Ref" : "EnvType"},
+					"DBUser" : {"Ref" : "RDSDatabaseUser"},
+					"DBPassword" : {"Ref" : "RDSDatabasePassword"},
+					"VPCId" : { "Ref" : "VPCId" },
+					"DBStorage" : { "Ref" : "RDSDBStorage" },
+					"DatabaseInstanceClass" : { "Ref" : "RDSDatabaseInstanceClass"},
+					"PrivateDataSubnets" : { "Ref" : "PrivateDataSubnets" },
+					"PrivateAppIpBlocks" : {"Ref" : "PrivateAppIpBlocks"},
+					"MonitoringGroup" : { "Ref" : "MonitoringSecGroup" },
+					"CiGroup" : { "Ref" : "CISecGroup" },
+					"VpnGroup" : { "Ref" : "VPNSecGroup" }
+				}
+			}
+		},
+		"Mongo" : {
+			"Type" : "AWS::CloudFormation::Stack",
+			"Properties" : {
+				"TemplateURL" : "https://s3-eu-west-1.amazonaws.com/aop-cloudformation-templates/templates/aop-mongodb-template.json",
+				"Parameters" : {
+					"DomainName" : { "Ref" : "DomainName" },
+					"DNSZoneId" : { "Ref" : "DNSZoneId" },
+					"EnvType" : { "Ref" : "EnvType"},
+					"KeyName": { "Ref" : "KeyName" },
+					"BaseAmi" : {"Ref" : "MongoBaseAmi"},
+					"InstanceType" : { "Ref" : "MongoInstanceType"},
+					"NodesPerZone": { "Ref" : "MongoNodesPerZone"},
+					"VPCId" : { "Ref" : "VPCId" },
+					"AvailabilityZone1" : { "Ref" : "AvailabilityZone1"},
+					"AvailabilityZone2" : { "Ref" : "AvailabilityZone2"},
+					"AvailabilityZone3" : { "Ref" : "AvailabilityZone3"},
+					"PrivateAppIpBlocks" : {"Ref" : "PrivateAppIpBlocks"},
+					"PrivateDataSubnets" : { "Ref" : "PrivateDataSubnets" },
+					"MonitoringSecGroup" : { "Ref" : "MonitoringSecGroup" },
+					"CISecGroup" : { "Ref" : "CISecGroup" },
+					"VPNSecGroup" : { "Ref" : "VPNSecGroup" }
+				}
+			}
+		}
+	},
+	"Outputs": {
+	}
+}

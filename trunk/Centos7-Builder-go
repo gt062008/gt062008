@@ -1,0 +1,4 @@
+## Script to build a CUPS customised AMI image from a Centos.org Centos 7 image
+
+## Invoke CloudFormation script to build out new EC2 instance
+aws cloudformation create-stack --stack-name CUP-Centos7-Gold-20160928 --profile cambridge --region eu-west-1 --template-body file:///root/svn/AWS/CloudFormation/trunk/Centos7-Builder.template --parameters file:///root/svn/AWS/CloudFormation/trunk/Centos7-Builder.cfg

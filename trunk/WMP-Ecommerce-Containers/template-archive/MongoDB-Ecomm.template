@@ -1,0 +1,207 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09", 
+    "Description": "CloudFormation script WMP Ecommerce MongoDB.", 
+    "Mappings": {
+        "AWSAMI": {
+            "ACS": {
+                "AMI": "ami-d91ad1ae"
+            }, 
+            "ADMIN": {
+                "AMI": "ami-672ce210"
+            }, 
+            "Amazon": {
+                "AMI": "ami-748e2903"
+            }, 
+            "Centos": {
+                "AMI": "ami-00e33a77"
+            }, 
+            "NAT": {
+                "AMI": "ami-ed352799"
+            }
+        }, 
+        "CUPSSubnetConfig": {
+            "CAMINFRA": {
+                "CIDR": "131.111.159.0/24"
+            }, 
+            "CAMPT": {
+                "CIDR": "131.111.154.0/24"
+            }
+        }, 
+        "SubnetConfig": {
+            "PrivateB": {
+                "CIDR": "10.10.15.64/26"
+            }, 
+            "PublicB": {
+                "CIDR": "10.10.15.0/26"
+            }, 
+            "VPC": {
+                "CIDR": "10.10.15.0/24"
+            }
+        }
+    }, 
+    "Parameters": {
+        "AdminSecurityGroup": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing Bastion/Admin server", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "KeyName": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing SSH Keypair", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "PrivateSubnetA": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing subnet to contain MongoDB server", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }, 
+        "VPC": {
+            "AllowedPattern": "[\\x20-\\x7E]*", 
+            "ConstraintDescription": "can contain only ASCII characters.", 
+            "Description": "Name of existing VPC containing these objects", 
+            "MaxLength": "255", 
+            "MinLength": "1", 
+            "Type": "String"
+        }
+    }, 
+    "Resources": {
+        "MongoDBSG": {
+            "Properties": {
+                "GroupDescription": "Mongo DB Server Security Group", 
+                "SecurityGroupEgress": [
+                    {
+                        "CidrIp": "0.0.0.0/0", 
+                        "FromPort": "1", 
+                        "IpProtocol": "-1", 
+                        "ToPort": "9999"
+                    }
+                ], 
+                "SecurityGroupIngress": [
+                    {
+                        "FromPort": "22", 
+                        "IpProtocol": "tcp", 
+                        "SourceSecurityGroupId": {
+                            "Ref": "AdminSecurityGroup"
+                        }, 
+                        "ToPort": "22"
+                    }
+                ], 
+                "Tags": [
+                    {
+                        "Key": "Environment", 
+                        "Value": "Ecommerce"
+                    }, 
+                    {
+                        "Key": "Cluster", 
+                        "Value": "MongoDB"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "PT"
+                    }, 
+                    {
+                        "Key": "Role", 
+                        "Value": "SG"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "Ecommerce MongoDB Database SG"
+                    }
+                ], 
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }, 
+            "Type": "AWS::EC2::SecurityGroup"
+        }, 
+        "MongoDBServer": {
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSAMI", 
+                        "Centos", 
+                        "AMI"
+                    ]
+                }, 
+                "InstanceType": "m3.medium", 
+                "KeyName": {
+                    "Ref": "KeyName"
+                }, 
+                "SecurityGroupIds": {
+                    "Ref": "MongoDBSG"
+                }, 
+                "SourceDestCheck": "false", 
+                "SubnetId": {
+                    "Ref": "PrivateSubnetA"
+                }, 
+                "Tags": [
+                    {
+                        "Key": "Application", 
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }, 
+                    {
+                        "Key": "Project", 
+                        "Value": "WMP Ecomm"
+                    }, 
+                    {
+                        "Key": "Owner", 
+                        "Value": "Marc Paskell"
+                    }, 
+                    {
+                        "Key": "Platform", 
+                        "Value": "Database"
+                    }, 
+                    {
+                        "Key": "Name", 
+                        "Value": "wmp-ecomm-mongodb"
+                    }, 
+                    {
+                        "Key": "Version", 
+                        "Value": "1"
+                    }
+                ], 
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "\n", 
+                            [
+                                "#!/bin/bash", 
+                                "/usr/sbin/groupadd -g 506 wmpecommdev", 
+                                "/usr/sbin/useradd -g wmpecommdev -c \"Ecommerce Developer account\" wmpecommdev", 
+                                "cd /home/wmpecommdev", 
+                                "/bin/mkdir .ssh", 
+                                "echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCvloyc5wTv3UBFzG+3KHnT4x0ZMXEjxZkKpW0R5IbD+7qRWjpbyQOhhf2rMe6yVZ+V0plHBDqiZTPXntnWhPfQ9hRxF9Flf1TW+PQPdxZzXpDsXg2Ep1onMFF6fBFv8SdaK5+tfrCh144eUyPriygXcSjyhGJ8Rlw4p24yt3tBAi8rRUUdO13JB50lMvm+mQPpFQF9fIjZAIolCdwVCIbXMDgbYctkhN9p07MfCcknLIYO6OixB7TQN6eZg9MDksuiWyOOq+KHfa71THtX1yyBR9CtZFSQLbpCGMTJHIpSKR4nPUdWvjT7V9bPYjvPZOUhKQe3YsdvM84oFDsDmMLL wmpecommdev@puppet.aws.internal' >.ssh/authorized_keys", 
+                                "/bin/chown -R wmpecommdev:wmpecommdev .ssh", 
+                                "/bin/chmod 700 .ssh", 
+                                "/bin/chmod 600 .ssh/authorized_keys", 
+                                "echo '192.168.30.59 puppet' >>/etc/hosts", 
+                                "echo \"[mongodb]\" >/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"name=MongoDB Repository\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"baseurl=http://downloads-distro.mongodb.org/repo/redhat/os/x86_64/\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"gpgcheck=0\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "echo \"enabled=1\" >>/etc/yum.repos.d/mongodb.repo", 
+                                "/usr/bin/yum update <<EOT", 
+                                "N", 
+                                "EOT", 
+                                "/usr/bin/yum -y mongodb-org", 
+                                "exit"
+                            ]
+                        ]
+                    }
+                }
+            }, 
+            "Type": "AWS::EC2::Instance"
+        }
+    }
+}
